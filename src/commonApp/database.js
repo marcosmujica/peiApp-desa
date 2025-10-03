@@ -65,6 +65,11 @@ export async function db_getTicketRating (idTicket)
  return (aux2 == undefined ? 0 : aux2.rating)
 }
 
+export async function db_getTicketInfo (idTicket)
+{  let data = await db_find (db_TICKET_INFO, {idTicket: idTicket})
+  return data.map (item=>item.data)
+}
+
 export async function db_updateGroupUsers (id, data)
 {return await db_updateDoc (db_GROUP_TICKET, id, data)}
 
@@ -117,7 +122,7 @@ export async function db_getTicketLogByStatus(idTicket, idStatus, sortBy="TS", o
 export async function db_addTicketChat(data)
 {return (await db_add (db_TICKET_CHAT, null, data))}   
 
-export async function db_getTicketInfo(idTicket)
+export async function db_getTicket(idTicket)
 {return (await db_get (db_TICKET, idTicket))}   
 
 export async function db_updateTicket (idTicket, data)

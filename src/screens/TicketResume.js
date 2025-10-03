@@ -24,7 +24,6 @@ import {
   db_getGroupInfo,
   db_addGroupByTicket,
   db_addTicketLogStatus,
-  db_getTicketInfo,
 } from "../commonApp/database";
 import "../commonApp/global";
 import { _maxContactPerGroup } from "../commonApp/global";

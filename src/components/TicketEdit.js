@@ -24,7 +24,7 @@ import { TICKET, TICKET_LOG_DETAIL_STATUS } from "../commonApp/dataTypes";
 import { currencyList } from "../commonApp/currency";
 import {
   db_addTicketLogStatus,
-  db_getTicketInfo,
+  db_getTicket,
   db_updateTicket,
 } from "../commonApp/database";
 import {
@@ -85,7 +85,7 @@ const TicketEdit = ({ idTicket }) => {
 
     setLoading(true);
 
-    let ticketAux = await db_getTicketInfo(idTicket);
+    let ticketAux = await db_getTicket(idTicket);
 
     setTicket(ticketAux); // mm - guardo una copia del original para analizar  los cambios
     setTicketName(ticketAux.title);

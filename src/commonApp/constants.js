@@ -49,6 +49,9 @@ export const TICKET_INFO_TYPE_USE_TYPE = "useType"
 export const TICKET_STATUS_OPEN = "OPEN"
 export const TICKET_STATUS_CLOSED = "CLOSED"
 
+export const TICKET_INFO_TYPE_PAY_COMPULSIVE = "compulsive" // mm un gasto compulsivo
+export const TICKET_INFO_TYPE_PAY_PLANNED = "planned" // un gasto planeado
+
 export const TICKET_DETAIL_DEFAULT_STATUS = "PENDING"
 export const TICKET_DETAIL_ACCEPTED_STATUS = "ACCEPTED"
 export const TICKET_DETAIL_CANCELED_STATUS = "CANCELED"
@@ -113,12 +116,12 @@ export const EXPENSES_CATEGORY = [
 ].sort ((a,b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1);
 
 export const PAY_METHOD = [
-  {id:0, "code": "CREDIT_CARD", "name": "Tarjeta de Crédito"},
-  {id:1, "code": "DEBIT_CARD", "name": "Tarjeta de Débito"},
-  {id:2, "code": "BANK_TRANSFER", "name": "Transferencia Banco"},
-  {id:3, "code": "PHYSICAL_LOCATION", "name": "Pago en local de cobranza"},
-  {id:4, "code": "CASH", "name": "Pago en efectivo"},
-  {id:5, "code": "DIGITAL_WALLET", "name": "Billetera digital"}
+  {"code": "CREDIT_CARD", "name": "Tarjeta de Crédito"},
+  {"code": "DEBIT_CARD", "name": "Tarjeta de Débito"},
+  {"code": "BANK_TRANSFER", "name": "Transferencia Banco"},
+  {"code": "PHYSICAL_LOCATION", "name": "Pago en local de cobranza"},
+  {"code": "CASH", "name": "Pago en efectivo"},
+  {"code": "DIGITAL_WALLET", "name": "Billetera digital"}
 ].sort ((a,b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1)
 
 export const AREA_OF_WORK_LIST = [

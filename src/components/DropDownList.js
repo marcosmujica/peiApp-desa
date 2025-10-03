@@ -4,7 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { getStyles } from "../styles/home";
 import { tStyles, colors, fonts } from "../common/theme";
 
-const DropDownList= ({placeholder, data, onSelected}) => {
+const DropDownList= ({placeholder, data, onSelected, defaultCode = ""}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchText, setSearchText] = useState('');
@@ -30,11 +30,18 @@ const DropDownList= ({placeholder, data, onSelected}) => {
 
   // keep filteredAreas in sync when data changes
   useEffect(() => {
+    // Mantener la lista filtrada en sync con los datos entrantes
     setFilteredAreas(data || []);
-  }, [data]);
 
-  // Focus the search input when the modal opens
-  useEffect(() => {
+    // Si se pasó un defaultCode intentamos seleccionar ese item por defecto
+    if (defaultCode && data && data.length) {
+      const found = (data || []).find((it) => (it.code || '').toString() === defaultCode.toString());
+      if (found) {
+        setSelectedItem(found);
+      }
+    }
+
+    // Si el dropdown se abre, tratamos de enfocar el input de búsqueda
     if (isOpen && inputRef && inputRef.current) {
       try {
         inputRef.current.focus();
@@ -42,13 +49,15 @@ const DropDownList= ({placeholder, data, onSelected}) => {
         // ignore
       }
     }
-  }, [isOpen]);
+  }, [data, defaultCode, isOpen]);
 
- 
-  
   function setSelection (item)
   {
-    onSelected (item)
+    // Actualiza el estado local y notifica al parent
+    setSelectedItem(item);
+    if (typeof onSelected === 'function') {
+      onSelected(item);
+    }
   }
 
   return (
@@ -85,13 +94,15 @@ const DropDownList= ({placeholder, data, onSelected}) => {
             <FlatList
               style={[{backgroundColor:colors.gray5, borderRadius:15}]}
               data={filteredAreas}
-              keyExtractor={(item) => item.code}
+              keyExtractor={(item, index) => {
+                const key = item && (item.code || item.id || item.name);
+                return (key ? key.toString() : String(index));
+              }}
               renderItem={({ item }) => (
                 <Pressable
                   style={[getStyles(mode).normalText, {color:colors.secondary, padding:10}]}
                   onPress={() => {
                     setSelection (item);
-                    setSelectedItem(item);
                     setIsOpen(false);
                     setSearchText('');
                   }}

@@ -27,7 +27,6 @@ import { getStyles } from "../styles/chatdetails";
 import AppContext from "../context/appContext";
 import SlideOptions from "../components/SlideOptions";
 import {
-  db_getTicketInfo,
   db_listener_newMsgChat,
   db_addTicketChat,
   db_getTicketChat,

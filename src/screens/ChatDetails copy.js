@@ -30,7 +30,7 @@ import { TICKET_CHAT } from "../commonApp/dataTypes";
 import AppContext from "../context/appContext";
 import TitleBar from "../components/TitleBar";
 import SlideOptions from "../components/SlideOptions";
-import { db_getTicketChat, db_getTicketInfo, db_addTicketChat } from "../commonApp/database";
+import { db_getTicketChat, db_getTicket, db_addTicketChat } from "../commonApp/database";
 import { getContactName } from "../commonApp/contacts";
 
 const ChatDetails = ({ navigation, route }) => {
@@ -92,7 +92,7 @@ const ChatDetails = ({ navigation, route }) => {
   async function loadData() {
     try {
       setLoading(true);
-      let ticket = await db_getTicketInfo (idTicket);
+      let ticket = await db_getTicket (idTicket);
       setTicketTitle (ticket.title)
 
       let idUserTo = ticket.idUserFrom == profile.idUser ? ticket.idUserTo : ticket.idUserFrom

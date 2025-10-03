@@ -26,6 +26,8 @@ import {
   TICKET_INFO_TYPE_PAY,
   TICKET_INFO_TYPE_COLLECT,
   TICKET_INFO_TYPE_USE_TYPE,
+  TICKET_INFO_TYPE_PAY_COMPULSIVE,
+  TICKET_INFO_TYPE_PAY_PLANNED,
 } from "../commonApp/constants";
 import {showToast} from "../common/toast";
 import {TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE} from "../commonApp/dataTypes";
@@ -46,6 +48,7 @@ const NewTicket = ({navigation, route}) => {
   let idTicketGroupBy = route.params["idTicketGroupBy"];
   const [groupName, setGroupName] = React.useState(route.params["name"]);
   const [useType, setUseType] = React.useState(TICKET_USE_TYPE_PERSONAL);
+  const [payType, setPayType] = React.useState(TICKET_INFO_TYPE_PAY_PLANNED);
   const [isShowDetail, setIsShowDetail] = React.useState(false);
 
   // mm - si no viene un parametro ticketDefault lo inicializo en blanco
@@ -201,12 +204,12 @@ const NewTicket = ({navigation, route}) => {
         // mm - agrego los 2 registros, pay y collect de esta manera para que no me guarde info sucia porque el usuario pudo haber seleccionado info para pay o collect y despues haberla cambiada
         if (ticketType == TICKET_TYPE_PAY) {
           ticketInfoPay.pay.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
+          ticketInfoPay.pay.type = payType
         } else {
           ticketInfoCollect.collect.billsAmount = Number(billsAmount);
           ticketInfoCollect.collect.billsNote = billsNote;
           ticketInfoCollect.collect.areaWork = userAreaToWork;
         }
-
         await db_addTicketInfo(ticketInfoPay);
         await db_addTicketInfo(ticketInfoCollect);
 
@@ -219,20 +222,13 @@ const NewTicket = ({navigation, route}) => {
 
         await db_addTicketInfo(ticketInfoUseType);
 
-        // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
-        ticketInfoUseType = new TICKET_INFO_USE_TYPE();
-        ticketInfoUseType.idTicket = idTicket;
-        ticketInfoUseType.idUser = idToUser;
-
-        await db_addTicketInfo(ticketInfoUseType);
-
         // mm - creo status inicial
         let data = new TICKET_LOG_DETAIL_STATUS();
         // mm - tomo el id del ticket que se creo
         data.idTicket = idTicket;
         data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser
-        data.idUserTo = idToUser // mm - guardo para poder filtrar en los eventos del log
+        data.idUserFrom = profile.idUser;
+        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
         data.data.amount = ticketAmount;
         data.message = isTicketOpen
           ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
@@ -244,8 +240,8 @@ const NewTicket = ({navigation, route}) => {
         data = new TICKET_LOG_DETAIL_STATUS();
         data.idTicket = idTicket;
         data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser
-        data.idUserTo = idToUser // mm - guardo para poder filtrar en los eventos del log
+        data.idUserFrom = profile.idUser;
+        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
         data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
         data.data.dueDate = dueDate;
 
@@ -267,6 +263,10 @@ const NewTicket = ({navigation, route}) => {
     setPay(pay);
   }
 
+  function setTypePay(type) {
+    setPayType(type);
+  }
+
   const removeContactFromList = (contact) => {
     /// mm - si aun no esta en la lista para no agregarlo duplicado que da error
     if (groupUsersList.length == 2) {
@@ -284,8 +284,6 @@ const NewTicket = ({navigation, route}) => {
 
     let auxProfile = getProfile();
     setProfile(auxProfile);
-    debugger;
-    alert(auxProfile.defaultCurrency);
     setDefaultCurrency(auxProfile.defaultCurrency);
     setPayMethodInfo(auxProfile.payMethodInfo);
 
@@ -335,7 +333,7 @@ const NewTicket = ({navigation, route}) => {
 
   return (
     <SafeAreaView style={getStyles(mode).container}>
-      <Loading loading={loading} title="Trabajando, por favor espera..."/>
+      <Loading loading={loading} title="Estoy trabajando, por favor espera..." />
       <TitleBar title="Ticket" goBack={true} onGoBack={gotoHome} />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
         <ScrollView contentContainerStyle={{flexGrow: 1}} style={{flex: 1}}>
@@ -362,7 +360,27 @@ const NewTicket = ({navigation, route}) => {
               </TouchableOpacity>
             </View>
           </View>
-
+          {ticketType == TICKET_TYPE_PAY && (
+            <View style={styles.row}>
+              <BadgeBtn
+                items={[
+                  {
+                    id: TICKET_INFO_TYPE_PAY_PLANNED,
+                    title: "Gasto Programado",
+                    active: payType === TICKET_INFO_TYPE_PAY_PLANNED,
+                    onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_PLANNED),
+                  },
+                  {
+                    id: TICKET_INFO_TYPE_PAY_COMPULSIVE,
+                    title: "Gasto Compulsivo",
+                    active: payType === TICKET_INFO_TYPE_PAY_COMPULSIVE,
+                    onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_COMPULSIVE),
+                  },
+                ]}
+                idActive={payType}
+              />
+            </View>
+          )}
           <View style={[getStyles(mode).topBarHolder, {borderBottomWidth: 0}]}>
             <FlatList
               horizontal={true}

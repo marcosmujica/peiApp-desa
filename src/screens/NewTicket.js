@@ -1,21 +1,24 @@
-import React, {useState, useEffect} from "react";
-import {View, Text, TextInput, ScrollView, Switch, TouchableOpacity, FlatList, useColorScheme, StyleSheet, KeyboardAvoidingView} from "react-native";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {AntDesign} from "@expo/vector-icons";
-import {Fontisto, Entypo, Feather} from "@expo/vector-icons";
-import {colors, fonts, tStyles} from "../common/theme";
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, ScrollView, Switch, TouchableOpacity, FlatList, useColorScheme, StyleSheet, KeyboardAvoidingView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { AntDesign } from "@expo/vector-icons";
+import { Fontisto, Entypo, Feather } from "@expo/vector-icons";
+import { colors, fonts, tStyles } from "../common/theme";
 import ImgAvatar from "../components/ImgAvatar";
-import {getStyles} from "../styles/home";
-import {formatDateToStringLong} from "../commonApp/functions";
-import {db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo} from "../commonApp/database";
+import { getStyles } from "../styles/home";
+import { formatDateToStringLong } from "../commonApp/functions";
+import { db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo } from "../commonApp/database";
 import "../commonApp/global";
-import {_contacts, getContactName} from "../commonApp/contacts";
-import {_maxContactPerGroup} from "../commonApp/global";
+import { _contacts, getContactName } from "../commonApp/contacts";
+import { _maxContactPerGroup } from "../commonApp/global";
 import AppContext from "../context/appContext";
 import {
   TICKET_USE_TYPE_BUSINESS,
   TICKET_USE_TYPE_PERSONAL,
   TICKET_USE_TYPE_SHARED,
+  TICKET_INFO_TYPE_PAY_PLANNED,
+  TICKET_INFO_TYPE_PAY_IMPULSIVED,
+  TICKET_INFO_TYPE_PAY_UNEXPECTED,
   AREA_OF_WORK_LIST,
   TICKET_TYPE_COLLECT,
   TICKET_TYPE_PAY,
@@ -27,21 +30,21 @@ import {
   TICKET_INFO_TYPE_COLLECT,
   TICKET_INFO_TYPE_USE_TYPE,
 } from "../commonApp/constants";
-import {showToast} from "../common/toast";
-import {TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE} from "../commonApp/dataTypes";
-import {getProfile} from "../commonApp/profile";
+import { showToast } from "../common/toast";
+import { TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE } from "../commonApp/dataTypes";
+import { getProfile } from "../commonApp/profile";
 import CurrencyDropDown from "../components/CurrencyDropDown";
 import DropDownList from "../components/DropDownList";
 import TitleBar from "../components/TitleBar";
 import Loading from "../components/Loading";
-import {formatNumber, validateNumeric, diasEntreFechas} from "../commonApp/functions";
-import {displayTime, ellipString} from "../common/helpers";
+import { formatNumber, validateNumeric, diasEntreFechas } from "../commonApp/functions";
+import { displayTime, ellipString } from "../common/helpers";
 import Toast from "react-native-toast-message";
 import Hr from "../components/Hr";
 import DateBtn from "../components/DateBtn";
 import BadgeBtn from "../components/BadgeBtn";
 
-const NewTicket = ({navigation, route}) => {
+const NewTicket = ({ navigation, route }) => {
   const [idTicketGroup] = React.useState(route.params["idTicketGroup"]);
   let idTicketGroupBy = route.params["idTicketGroupBy"];
   const [groupName, setGroupName] = React.useState(route.params["name"]);
@@ -60,7 +63,7 @@ const NewTicket = ({navigation, route}) => {
 
   if (isNewTicket) ticketDefault.currency = profileAux.defaultCurrency;
 
-  const [userAreaWork, setUserAreaWork] = useState([{name: "", code: ""}]);
+  const [userAreaWork, setUserAreaWork] = useState([{ name: "", code: "" }]);
 
   const mode = useColorScheme();
 
@@ -70,12 +73,12 @@ const NewTicket = ({navigation, route}) => {
   const [ticketAmount, setTicketAmount] = React.useState(ticketDefault.amount == 0 ? "" : String(ticketDefault.amount)); // mm - lo dejo en string para que no me aparezco un 0 en el placeholder
   const [ticketRef, setTicketRef] = React.useState(ticketDefault.metadata.externalReference);
 
-  const {showAlertModal} = React.useContext(AppContext);
+  const { showAlertModal } = React.useContext(AppContext);
   const [loading, setLoading] = React.useState("");
   const [payMethodInfo, setPayMethodInfo] = React.useState(ticketDefault.paymentInfo.paymentMethod);
   const [expensesCategory, setExpensesCategory] = React.useState("");
   const [ticketType, setTicketType] = React.useState("");
-  const [defaultCurrency, setDefaultCurrency] = React.useState("USD");
+  const [defaultCurrency, setDefaultCurrency] = React.useState(profileAux.defaultCurrency || "USD");
   const [ticketStatus, setTicketStatus] = React.useState(TICKET_DETAIL_DEFAULT_STATUS); // mm - lo dejo sin estado al principio para que el usuario se obligue a marcarlo
   const [groupInfo, setGroupInfo] = React.useState({});
   const [isTicketOpen, setisTicketOpen] = React.useState(true); // mm - si es pago o cobro
@@ -85,6 +88,7 @@ const NewTicket = ({navigation, route}) => {
   const [statusList, setStatusList] = useState([]);
   const [profile, setProfile] = useState(profileAux);
   const [groupUsersList, setGroupUsersList] = useState([]);
+  const [payType, setTypePay] = useState(TICKET_INFO_TYPE_PAY_PLANNED);
 
   const toggleTicketOpen = () => setisTicketOpen((previousState) => !previousState);
 
@@ -200,11 +204,12 @@ const NewTicket = ({navigation, route}) => {
 
         // mm - agrego los 2 registros, pay y collect de esta manera para que no me guarde info sucia porque el usuario pudo haber seleccionado info para pay o collect y despues haberla cambiada
         if (ticketType == TICKET_TYPE_PAY) {
-          ticketInfoPay.pay.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
+          ticketInfoPay.info.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
+          ticketInfoPay.info.type = payType
         } else {
-          ticketInfoCollect.collect.billsAmount = Number(billsAmount);
-          ticketInfoCollect.collect.billsNote = billsNote;
-          ticketInfoCollect.collect.areaWork = userAreaToWork;
+          ticketInfoCollect.info.billsAmount = Number(billsAmount);
+          ticketInfoCollect.info.billsNote = billsNote;
+          ticketInfoCollect.info.areaWork = userAreaToWork;
         }
 
         await db_addTicketInfo(ticketInfoPay);
@@ -215,15 +220,13 @@ const NewTicket = ({navigation, route}) => {
         let ticketInfoUseType = new TICKET_INFO_USE_TYPE();
         ticketInfoUseType.idTicket = idTicket;
         ticketInfoUseType.idUser = profile.idUser;
-        ticketInfoUseType.useType = useType;
-
+        ticketInfoUseType.info.useType = useType;
         await db_addTicketInfo(ticketInfoUseType);
 
         // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
         ticketInfoUseType = new TICKET_INFO_USE_TYPE();
         ticketInfoUseType.idTicket = idTicket;
         ticketInfoUseType.idUser = idToUser;
-
         await db_addTicketInfo(ticketInfoUseType);
 
         // mm - creo status inicial
@@ -231,8 +234,8 @@ const NewTicket = ({navigation, route}) => {
         // mm - tomo el id del ticket que se creo
         data.idTicket = idTicket;
         data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser
-        data.idUserTo = idToUser // mm - guardo para poder filtrar en los eventos del log
+        data.idUserFrom = profile.idUser;
+        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
         data.data.amount = ticketAmount;
         data.message = isTicketOpen
           ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
@@ -244,8 +247,8 @@ const NewTicket = ({navigation, route}) => {
         data = new TICKET_LOG_DETAIL_STATUS();
         data.idTicket = idTicket;
         data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser
-        data.idUserTo = idToUser // mm - guardo para poder filtrar en los eventos del log
+        data.idUserFrom = profile.idUser;
+        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
         data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
         data.data.dueDate = dueDate;
 
@@ -260,7 +263,7 @@ const NewTicket = ({navigation, route}) => {
 
     showToast.success(`Se creó el ticket '${ticketName}' por ${defaultCurrency} ${ticketAmount}`, "Ticket creado");
 
-    navigation.reset({index: 0, routes: [{name: "MainScreen"}]});
+    navigation.reset({ index: 0, routes: [{ name: "MainScreen" }] });
   }
 
   function setPayCollect(pay) {
@@ -284,9 +287,8 @@ const NewTicket = ({navigation, route}) => {
 
     let auxProfile = getProfile();
     setProfile(auxProfile);
-    debugger;
-    alert(auxProfile.defaultCurrency);
-    setDefaultCurrency(auxProfile.defaultCurrency);
+    // mm - solo actualizar si tiene un valor válido
+    
     setPayMethodInfo(auxProfile.payMethodInfo);
 
     //ticketDefault.currency == "" ? "USD" : ticketDefault.currency
@@ -314,6 +316,9 @@ const NewTicket = ({navigation, route}) => {
       console.log(e);
     }
 
+    if (auxProfile.defaultCurrency && auxProfile.defaultCurrency !== "") {
+      setDefaultCurrency(auxProfile.defaultCurrency);
+    }
     setStatusList(TICKET_DETAIL_STATUS.filter((item) => item.admin == true));
     setLoading(false);
   }
@@ -335,42 +340,35 @@ const NewTicket = ({navigation, route}) => {
 
   return (
     <SafeAreaView style={getStyles(mode).container}>
-      <Loading loading={loading} title="Trabajando, por favor espera..."/>
+      <Loading loading={loading} title="Trabajando, por favor espera..." />
       <TitleBar title="Ticket" goBack={true} onGoBack={gotoHome} />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
-        <ScrollView contentContainerStyle={{flexGrow: 1}} style={{flex: 1}}>
-          <View style={[getStyles(mode).row, {padding: 10}]}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1 }}>
+          <View style={[getStyles(mode).row, { padding: 10 }]}>
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 10,
                 //padding: 20,
-              }}
-            >
-              <TouchableOpacity
-                style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilter : null]}
-                onPress={() => setTicketType(TICKET_TYPE_COLLECT)}
-              >
+              }}>
+              <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_COLLECT)}>
                 <Text style={[getStyles(mode).chatFilterText, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilterText : null]}>Cobrar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilter : null]}
-                onPress={() => setTicketType(TICKET_TYPE_PAY)}
-              >
+              <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_PAY)}>
                 <Text style={[getStyles(mode).chatFilterText, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilterText : null]}>Pagar</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={[getStyles(mode).topBarHolder, {borderBottomWidth: 0}]}>
+          <View style={[getStyles(mode).topBarHolder, { borderBottomWidth: 0 }]}>
             <FlatList
               horizontal={true}
               showsHorizontalScrollIndicator={false}
               data={groupUsersList}
               keyExtractor={(item) => item.id}
-              renderItem={({item}) => <SelectedItem item={item} removeContactFromList={removeContactFromList} profile={profile} />}
-              contentContainerStyle={{paddingHorizontal: 15}}
+              renderItem={({ item }) => <SelectedItem item={item} removeContactFromList={removeContactFromList} profile={profile} />}
+              contentContainerStyle={{ paddingHorizontal: 15 }}
             />
           </View>
           <View style={styles.row}>
@@ -398,20 +396,39 @@ const NewTicket = ({navigation, route}) => {
               idActive={useType}
             />
           </View>
+          {ticketType == TICKET_TYPE_PAY && <View style={styles.row}>
+            <BadgeBtn
+              items={[
+                {
+                  id: TICKET_INFO_TYPE_PAY_PLANNED,
+                  title: "Gasto Programado",
+                  active: payType === TICKET_INFO_TYPE_PAY_PLANNED,
+                  onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_PLANNED),
+                },
+                {
+                  id: TICKET_INFO_TYPE_PAY_IMPULSIVED,
+                  title: "Gasto Impulsivo",
+                  active: payType === TICKET_INFO_TYPE_PAY_IMPULSIVED,
+                  onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_IMPULSIVED),
+                },
+                {
+                  id: TICKET_INFO_TYPE_PAY_UNEXPECTED,
+                  title: "Gasto Inesperado",
+                  active: payType === TICKET_INFO_TYPE_PAY_UNEXPECTED,
+                  onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_UNEXPECTED),
+                },
+              ]}
+              idActive={payType}
+            />
+          </View>}
 
-          <View style={[styles.container, {flex: 1}]}>
-            <View style={{padding: 20}}>
+          <View style={[styles.container, { flex: 1 }]}>
+            <View style={{ padding: 20 }}>
               <Text style={getStyles(mode).sectionTitle}>Título</Text>
               <View style={getStyles(mode).searchBar}>
-                <TextInput
-                  placeholder="título del ticket..."
-                  placeholderTextColor={colors.secondary}
-                  style={getStyles(mode).textInput}
-                  value={ticketName}
-                  onChangeText={setTicketName}
-                />
+                <TextInput placeholder="título del ticket..." placeholderTextColor={colors.secondary} style={getStyles(mode).textInput} value={ticketName} onChangeText={setTicketName} />
               </View>
-              <Text style={[getStyles(mode).sectionTitle, {paddingTop: 20}]}>Importe</Text>
+              <Text style={[getStyles(mode).sectionTitle, { paddingTop: 20 }]}>Importe</Text>
               <View
                 style={[
                   {
@@ -421,40 +438,35 @@ const NewTicket = ({navigation, route}) => {
                     gap: 10,
                   },
                   getStyles(mode).searchBar,
-                ]}
-              >
+                ]}>
                 <CurrencyDropDown defaultCurrency={defaultCurrency} onSelected={onSelectedCurrency} />
                 <TextInput
                   placeholder="importe del ticket..."
                   placeholderTextColor={colors.secondary}
-                  style={[getStyles(mode).textInput, {textAlign: "right", flex: 1}]}
+                  style={[getStyles(mode).textInput, { textAlign: "right", flex: 1 }]}
                   value={ticketAmount}
                   keyboardType="numeric"
                   onChangeText={setTicketAmount}
                 />
               </View>
-              <View>
-                <View style={styles.row}>
-                  <Text style={getStyles(mode).normalText}>Ya cobre/pagué el ticket</Text>
-                  <Switch
-                    value={!isTicketOpen}
-                    onValueChange={toggleTicketOpen}
-                    trackColor={{false: "#767577", true: "#b3b3b3ff"}}
-                    thumbColor={isTicketOpen ? "#f4f3f4" : "#aafdc2ff"}
-                  />
-                </View>
-              </View>
-              {/* SI ES TIPO COBRAR*/}
               {ticketType == TICKET_TYPE_PAY && (
-                <View style={{paddingTop: 20, paddingBottom: 20}}>
+                <View style={{ paddingTop: 20, paddingBottom: 20 }}>
                   <Text style={getStyles(mode).sectionTitle}>A que corresponde el gasto</Text>
                   <View>
                     <DropDownList placeholder="selecciona un tipo de gasto" data={EXPENSES_CATEGORY} onSelected={onSelectedExpensesCategory} />
                   </View>
                 </View>
               )}
+              <View>
+                <View style={styles.row}>
+                  <Text style={getStyles(mode).normalText}>Ya cobre/pagué el ticket</Text>
+                  <Switch value={!isTicketOpen} onValueChange={toggleTicketOpen} trackColor={{ false: "#767577", true: "#b3b3b3ff" }} thumbColor={isTicketOpen ? "#f4f3f4" : "#aafdc2ff"} />
+                </View>
+              </View>
+              {/* SI ES TIPO COBRAR*/}
+              
               <Hr />
-              <View style={{padding: 20}}></View>
+              <View style={{ padding: 20 }}></View>
 
               {!isShowDetail && (
                 <TouchableOpacity onPress={() => setIsShowDetail(!isShowDetail)}>
@@ -472,8 +484,8 @@ const NewTicket = ({navigation, route}) => {
               )}
             </View>
             {isShowDetail && (
-              <View style={{padding: 10}}>
-                <View style={{padding: 10}}>
+              <View style={{ padding: 10 }}>
+                <View style={{ padding: 10 }}>
                   <Text style={getStyles(mode).sectionTitle}>Detalle</Text>
                   <View style={getStyles(mode).searchBar}>
                     <TextInput
@@ -487,7 +499,7 @@ const NewTicket = ({navigation, route}) => {
                     />
                   </View>
                 </View>
-                <View style={{padding: 10}}>
+                <View style={{ padding: 10 }}>
                   <Text style={getStyles(mode).sectionTitle}>Nota Privada</Text>
                   <View style={getStyles(mode).searchBar}>
                     <TextInput
@@ -501,23 +513,17 @@ const NewTicket = ({navigation, route}) => {
                     />
                   </View>
                 </View>
-                <View style={{padding: 10}}>
+                <View style={{ padding: 10 }}>
                   <Text style={getStyles(mode).sectionTitle}>Texto de Referencia</Text>
                   <View style={getStyles(mode).searchBar}>
-                    <TextInput
-                      placeholder="por ej FACTURA ..."
-                      placeholderTextColor={colors.secondary}
-                      style={getStyles(mode).textInput}
-                      value={ticketRef}
-                      onChangeText={setTicketRef}
-                    />
+                    <TextInput placeholder="por ej FACTURA ..." placeholderTextColor={colors.secondary} style={getStyles(mode).textInput} value={ticketRef} onChangeText={setTicketRef} />
                   </View>
                 </View>
-                <View style={{padding: 10}}>
+                <View style={{ padding: 10 }}>
                   <DateBtn text={"Vence en " + diasEntreFechas(dueDate) + " días"} onDateSelected={OnSelectedDueDate} />
                 </View>
 
-                <View style={{padding: 10}}>
+                <View style={{ padding: 10 }}>
                   {ticketType == TICKET_TYPE_COLLECT && (
                     <View>
                       <Text style={getStyles(mode).sectionTitle}>Cosas que gasté</Text>
@@ -532,15 +538,15 @@ const NewTicket = ({navigation, route}) => {
                           onChangeText={setBillsNote}
                         />
                       </View>
-                      <View style={{paddingTop: 10}}>
+                      <View style={{ paddingTop: 10 }}>
                         <Text style={getStyles(mode).sectionTitle}>Importe de los gastos</Text>
                         <View style={getStyles(mode).searchBar}>
-                          <Text style={{color: colors.gray50}}>{defaultCurrency}</Text>
+                          <Text style={{ color: colors.gray50 }}>{defaultCurrency}</Text>
 
                           <TextInput
                             placeholder="importe del gasto..."
                             placeholderTextColor={colors.secondary}
-                            style={[getStyles(mode).searchBarInput, {textAlign: "right"}]}
+                            style={[getStyles(mode).searchBarInput, { textAlign: "right" }]}
                             value={billsAmount}
                             keyboardType="numeric"
                             onChangeText={setBillsAmount}
@@ -549,21 +555,17 @@ const NewTicket = ({navigation, route}) => {
                       </View>
                       <View>
                         {userAreaWork.length > 0 && (
-                          <View style={{paddingTop: 10}}>
+                          <View style={{ paddingTop: 10 }}>
                             <Text style={getStyles(mode).sectionTitle}>Área de Trabajo</Text>
                             <DropDownList placeholder="selecciona el área de trabajo" data={userAreaWork} onSelected={onSelectedAreaToWork} />
                           </View>
                         )}
-                        {userAreaWork.length == 0 && (
-                          <Text style={[getStyles(mode).activeText, {paddingBottom: 30}]}>
-                            Puedes agregar áreas de trabajo en Ajustes y luego Área de Trabajo
-                          </Text>
-                        )}
+                        {userAreaWork.length == 0 && <Text style={[getStyles(mode).activeText, { paddingBottom: 30 }]}>Puedes agregar áreas de trabajo en Ajustes y luego Área de Trabajo</Text>}
                       </View>
                     </View>
                   )}
 
-                  <View style={{paddingTop: 10}}>
+                  <View style={{ paddingTop: 10 }}>
                     <Text style={getStyles(mode).sectionTitle}>Instrucciones de Pago</Text>
                     <View style={getStyles(mode).searchBar}>
                       <TextInput
@@ -580,9 +582,9 @@ const NewTicket = ({navigation, route}) => {
                 </View>
               </View>
             )}
-            <View style={{paddingHorizontal: 15}}>
+            <View style={{ paddingHorizontal: 15 }}>
               <TouchableOpacity style={getStyles(mode).agreeBtn} onPress={() => checkInfoAndSave()}>
-                <Text style={[fonts.medium, {color: colors.white, fontSize: 13}]}>Guardar el Ticket</Text>
+                <Text style={[fonts.medium, { color: colors.white, fontSize: 13 }]}>Guardar el Ticket</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -592,14 +594,14 @@ const NewTicket = ({navigation, route}) => {
   );
 };
 
-const SelectedItem = ({removeContactFromList, item, profile}) => {
+const SelectedItem = ({ removeContactFromList, item, profile }) => {
   const mode = useColorScheme();
 
   return (
     <View>
       {item.contact != profile.idUser && (
         <TouchableOpacity onPress={() => removeContactFromList(item)} style={getStyles(mode).selectedContact}>
-          <View style={[getStyles(mode).linkIconHolder, {marginRight: 15}]}>
+          <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
             <ImgAvatar id={item.contact} />
             <View style={getStyles(mode).avatarHolder}>
               <Fontisto name="close" size={16} color={colors.gray30} />

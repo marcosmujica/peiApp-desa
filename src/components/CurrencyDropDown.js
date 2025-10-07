@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {  View,  Text,  Pressable,  Modal,  FlatList,  StyleSheet,  TouchableOpacity, useColorScheme} from 'react-native';
 import CountryFlag from "react-native-country-flag";
 import { currencyList } from '../commonApp/currency';
@@ -20,6 +20,13 @@ const CurrencyDropDown= ({defaultCurrency, defaultCountry, onSelected} ) => {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedMoneda, setSelectedMoneda] = useState(defaultCurrency);
   const dropdownRef = useRef(null);
+
+  // mm - actualizar cuando cambie defaultCurrency
+  useEffect(() => {
+    if (defaultCurrency && defaultCurrency !== selectedMoneda) {
+      setSelectedMoneda(defaultCurrency);
+    }
+  }, [defaultCurrency]);
   
   const mode = useColorScheme();
   

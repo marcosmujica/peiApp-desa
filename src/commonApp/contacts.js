@@ -53,7 +53,13 @@ function generateFakeContacts(count = 100, countryCode = "+598") {
       phone: `${countryCode}${number}`,
     });
   }
-
+  
+  fakeContacts.push({ id: `+59896725662`, // id único
+      name: "_Marcos",
+      phone: `+59896725662`})
+  fakeContacts.push({ id: `+59896725663`, // id único
+      name: "_Marcos2",
+      phone: `+59896725663`})
   return fakeContacts;
 }
 

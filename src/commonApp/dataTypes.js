@@ -1,4 +1,4 @@
-import {TICKET_INFO_TYPE_COLLECT, TICKET_USE_TYPE_PERSONAL, TICKET_LOG_DETAIL_TYPE_STATUS, TICKET_DETAIL_DEFAULT_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_SINGLE, TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE} from "./constants";
+import {TICKET_INFO_TYPE_COLLECT, TICKET_USE_TYPE_PERSONAL, TICKET_LOG_DETAIL_TYPE_STATUS, TICKET_DETAIL_DEFAULT_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_SINGLE, TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE, TICKET_INFO_TYPE_PAY_PLANNED} from "./constants";
 
 
 export class GROUP_TICKETS {
@@ -82,7 +82,9 @@ export class TICKET_INFO_PAY {
     this.idTicket = "",
     this.type = TICKET_INFO_TYPE_PAY
     this.idUser= "",
-    this.pay= { expensesCategory: "" }
+    this.info= { expensesCategory: "",
+      type: TICKET_INFO_TYPE_PAY_PLANNED
+     }
   }
 }   
 export class TICKET_INFO_COLLECT {
@@ -91,7 +93,7 @@ export class TICKET_INFO_COLLECT {
     this.idTicket="",
     this.type = TICKET_INFO_TYPE_COLLECT
     this.idUser="",
-    this.collect= { billsAmount: 0, billsNote: "", areaWork: "" }
+    this.info= { billsAmount: 0, billsNote: "", areaWork: "" }
   }
 }
    
@@ -102,7 +104,7 @@ export class TICKET_INFO_USE_TYPE {
     this.idTicket="",
     this.type = TICKET_INFO_TYPE_USE_TYPE
     this.idUser="",
-    this.useType = TICKET_USE_TYPE_PERSONAL
+    this.info = {useType: TICKET_USE_TYPE_PERSONAL}
   }
 }
    
@@ -286,9 +288,15 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
   {
     this.idTicket = ""
     this.avatar = ""
-    this.name = ""
+    this.title = ""
+    this.amount = 0
+    this.currency = ""
+    this.way = ""
     this.lastMsg = ""
-    this.view = false
+    this.status = ""
+    this.statusText = ""
+    this.isOpen = false
+    this.seen = false
     this.ts = new Date()
     this.unread = 0
   }

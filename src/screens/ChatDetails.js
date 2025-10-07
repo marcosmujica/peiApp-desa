@@ -43,7 +43,7 @@ import SlideOptions from "../components/SlideOptions";
 import { TICKET_CHAT } from "../commonApp/dataTypes";
 import {
   db_addTicketChat,
-  db_getTicketInfo,
+  db_getTicket,
   db_getTicketChat,
 } from "../commonApp/database";
 import TitleBar from "../components/TitleBar";
@@ -279,7 +279,7 @@ const ChatDetails = ({ navigation, route }) => {
   async function loadData() {
     try {
       setLoading(true);
-      let ticket = await db_getTicketInfo(idTicket);
+      let ticket = await db_getTicket(idTicket);
       setTicketTitle(ticket.title);
 
       let idUserTo = isMe(ticket.idUserFrom)
@@ -360,7 +360,7 @@ const ChatDetails = ({ navigation, route }) => {
       >
         <TitleBar
           goBack={true}
-          title={ticketTitle}
+          title={ellipString(ticketTitle, 20)}
           subtitle={ticketUsername}
           idAvatar={idUserTo}
         />
@@ -557,7 +557,6 @@ const ChatItem = ({ chat, onOpen, showDate, dateLabel }) => {
   const { width } = useWindowDimensions();
   if (chat.originalName == undefined) chat.originalName = "";
 
-  console.log(chat);
   return (
     <View>
       {showDate && (

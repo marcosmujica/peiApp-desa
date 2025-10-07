@@ -25,6 +25,7 @@ export class DB {
     syncInterval : syncIntervalParam,
     index = [],
     debug = false,
+    emitChanges = false
   }) {
     try{
       this.tableName = name;
@@ -39,6 +40,7 @@ export class DB {
       this.authHeader = "Basic " + Buffer.from(`${this.username}:${this.password}`).toString("base64");
       this.localDB = null;
       this.syncing = false;
+      this.emitChanges = emitChanges 
       this.debug = !!debug;
       this._trace = [];
       this._maxTrace = 1000; // cap to avoid unbounded memory
@@ -248,7 +250,8 @@ export class DB {
       this._tracePush('saveLocal:done', { id, _rev: record._rev, _id: record._id });
 
       this.startSync(); // mm - al final intento sincronizar asincornico
-  try { emitEvent(EVENT_NEW_DOC, { table: this.tableName, id, _id: record._id, data: data, preview: this._preview(data), source: 'local', synced: false }); } catch(e) {}
+  try { 
+      if (this.emitChanges) emitEvent(EVENT_NEW_DOC, { table: this.tableName, id, _id: record._id, data: data, new: record._rev == "",preview: this._preview(data), source: 'local', synced: false }); } catch(e) {}
       return id;
     } catch (err) {
       console.error("Error guardando local:", err);
@@ -494,14 +497,12 @@ export class DB {
             if (doc.data && doc.data.deleted === true) {
               await this.delete(doc._id);
             } else {
-              await this.saveLocal(doc.data, doc._id);
+              await this.saveLocal(doc.data, doc._id, doc._rev);
               await this.markSynced(doc._id);
             }
 
             // mm - emito evento de nuevo doc (remoto)
-            // This event comes from the server; mark it as synced/remote so
-            // listeners know the document is confirmed on the server.
-            emitEvent(EVENT_NEW_DOC, { table: this.tableName, data: doc.data, id: doc._id, doc, source: 'remote', synced: true });
+            if (this.emitChanges) emitEvent(EVENT_NEW_DOC, { table: this.tableName, data: doc.data, id: doc._id, doc, source: 'remote', synced: true });
           }
         } else {
           console.error("Respuesta inesperada:", text);
@@ -558,11 +559,12 @@ export class DB {
       return all.find((r) => r.id === id) || null;
     }
     let aux = await this.getAll("SELECT * FROM records where id=?", [id]);
-    aux == [] ? {} : aux[0];
+    if (!aux || aux.length === 0) return null;
+    return aux[0];
   }
 
-  async update(id, newData) {
-    const result = await this.saveLocal(newData, id);
+  async update(id, newData, rev) {
+    const result = await this.saveLocal(newData, id, rev);
     return result;
   }
 

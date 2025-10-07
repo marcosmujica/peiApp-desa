@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const Updates = () => {
     const mode = useColorScheme();
-    const { options } = React.useContext(AppContext);
+    const { options, setOptions } = React.useContext(AppContext);
     const links = [
         { id:1, title: "Status privacy", onPress: () => {} },
         { id:2, title: "Settings", onPress: () => {} },
@@ -44,7 +44,7 @@ const Updates = () => {
 
 
             {/* Slide Options */}
-            { options && <SlideOptions links={ links } />}
+            { options && <SlideOptions links={ links } setOptions={ setOptions } />}
 
         </View>
     )

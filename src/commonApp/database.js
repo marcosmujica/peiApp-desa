@@ -3,6 +3,7 @@ import {DB_REMOTE, RATING, OTP, LOCAL_PROFILE, USER, _ACCESS} from "./dataTypes"
 import { getProfile } from './profile';
 import { Platform } from 'react-native';
 import dbInstance from './dbInstance';
+import {deepObjectMerge} from './functions';
 
 
 export const db_OTP = "otp"
@@ -18,6 +19,7 @@ export const db_GROUP_BY_TICKET = "group_by_ticket"
 export const db_HELPDESK = "helpdesk"
 export const db_RATING = "ticket_rating"
 export const db_TICKET_INFO = "ticket_info"
+export const db_TICKET_VIEW = "ticket_view"
 
 //_urlRemoteDB = "http://localhost:5984"
 const _urlRemoteDB = "http://192.168.68.53:5984"
@@ -48,7 +50,7 @@ export async function db_addTicketRating (idTicket, rating)
 }
 
 export async function db_addTicketInfo (data)
-{
+{    
  return await db_add(db_TICKET_INFO,null, data)
 }
 
@@ -117,14 +119,46 @@ export async function db_getTicketLogByStatus(idTicket, idStatus, sortBy="TS", o
 export async function db_addTicketChat(data)
 {return (await db_add (db_TICKET_CHAT, null, data))}   
 
-export async function db_getTicketInfo(idTicket)
+export async function db_addTicketListItem(idTicket, data)
+{return (await db_add (db_TICKET_VIEW, idTicket, data))}   
+
+export async function db_getTicket(idTicket)
 {return (await db_get (db_TICKET, idTicket))}   
+
+export async function db_getTicketInfo(idTicket)
+{let data = await db_find (db_TICKET_INFO, {"idTicket" : idTicket})
+return data.map (item=>item.data)}
 
 export async function db_updateTicket (idTicket, data)
 { return (await db_updateDoc (db_TICKET, idTicket, data))}
 
+export async function db_updateTicketListItem (idTicket, data)
+{ return (await db_updateDoc (db_TICKET_VIEW, idTicket, data))}
+
+export async function db_getTicketViewByTicketId (idTicket)
+{
+    return await db_find (db_TICKET_VIEW, {idTicket:idTicket})
+}
+
+export async function db_updateTicketInfo (idTicket, idUser, type, data)
+{ 
+    try {
+        let aux = await db_find (db_TICKET_INFO, {idTicket: idTicket, idUser: idUser, type: type})
+        if (!aux || aux.length == 0) return false
+        const existing = aux[0]
+        existing.data.info = deepObjectMerge (existing.data.info, data)
+        return await db_updateDoc (db_TICKET_INFO, existing.id,existing.data)
+    }
+    catch (e) { console.log (e);console.log ("Error db_updateTicketInfo: " + JSON.stringify(e)); return false }
+}
+
 export async function db_getAllTickets ()
 { return (await db_getAll (db_TICKET))}
+
+export async function db_getAllTicketItem (data)
+{ let aux = await db_find (db_TICKET_VIEW, data)
+    return (aux.map ((item)=> item.data))
+}
 
 export async function db_getGroupInfo (id)
 { return (await db_get (db_GROUP_TICKET, id))}
@@ -185,6 +219,9 @@ export async function db_addHelpDesk (data)
 export async function db_addTicketLogStatus(data)
 { return (await db_add (db_TICKET_LOG_STATUS, null, data))}
 
+// mm - abro la bd, solo para que funcionen los listen por ej pero no se deberia usar para otra cosa
+export async function db_openDB (dbName)
+{ return getDbByName (dbName)}
 
 ///// --------------------------
 
@@ -209,7 +246,7 @@ async function getDbByName (dbName)
     {
         try{
             // mm - si es local o sync siempre tengo que crear una base de datos local
-            let aux = new DB({name:dbName, type: db.syncSide, index: db.index})
+            let aux = new DB({name:dbName, type: db.syncSide, index: db.index, live: db.live})
             await aux.initDB()
             db.created = true
             db.dbLocal = aux
@@ -230,17 +267,30 @@ async function db_updateDoc (dbName, id, docNew)
 {
     try{
 
+        
+        let db= await getDbByName (dbName)
+        let doc = await db.getWithHeader(id)
+        if (doc==false) { return false}
+        doc.data = docNew
+        return await db.update(id, doc.data, doc._rev);
+    }
+    catch (e) {
+        console.log (e);console.log ("Error update: " + JSON.stringify(e))}
+}
+
+async function db_updateDoc2 (dbName, id, docNew)
+{
+    try{
+
+        debugger
         let db= await getDbByName (dbName)
         let doc = await db.getWithHeader(id)
         
         if (doc==false) { return false}
         // mm - actualizo el campo enviado
-        //Object.keys(docNew).forEach(key => {
-        //    doc.data[key] = docNew[key];
-        //});
-        doc = {...doc, ...docNew}
-        doc._rev = docNew._rev
-        return await db.update(id, doc);
+        const existingData = (doc && doc.data) ? { ...doc.data } : {};
+        const merged = { ...existingData, ...docNew };
+        return await db.update(id, merged);
     }
     catch (e) {console.log ("Error update: " + JSON.stringify(e))}
 }

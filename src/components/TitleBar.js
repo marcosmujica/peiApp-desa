@@ -35,7 +35,7 @@ const TitleBar = ({title, subtitle, goBack, onGoBack, options, idAvatar = "" }) 
           </TouchableOpacity>
         )}
         {idAvatar != "" && (
-          <View style={{marginRight:10}}><ImgAvatar id={idAvatar} size={40}  /></View>
+          <View style={{marginRight:10}}><ImgAvatar id={idAvatar} size={35}  /></View>
         )}
         <TouchableOpacity 
           style={{ 

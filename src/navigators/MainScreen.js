@@ -144,15 +144,17 @@ const MainScreen = ({ navigation }) => {
 
 function CustomHeader({ children }) {
   const mode = useColorScheme();
-
-  // Remove context usage and setOptions from here to prevent update loop.
-  // If you need to open a menu or perform an action, use navigation or a callback prop.
+  const { options, setOptions } = React.useContext(AppContext);
 
   return (
     <View style={getStyles(mode).tabHeader}>
       <Text style={getStyles(mode).tabHeaderText}>{children}</Text>
 
-      <TouchableOpacity onPress={() => { /* handle menu open here if needed */ }}>
+      <TouchableOpacity 
+        onPress={() => setOptions(!options)}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        style={{ padding: 8 }}
+      >
         <Entypo
           name="dots-three-vertical"
           size={16}

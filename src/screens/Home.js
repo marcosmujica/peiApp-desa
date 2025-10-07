@@ -10,9 +10,12 @@ import AppContext from '../context/appContext';
 import { displayTime, ellipString } from '../common/helpers';
 import SearchBar  from '../components/SearchBar';
 import BadgeBtn from "../components/BadgeBtn"
-import {db_getAllTickets} from "../commonApp/database"
+import {db_openDB, db_getTicketViewByTicketId, db_getAllTicketItem, db_updateTicketListItem, db_addTicketListItem, db_TICKET, db_getAllTickets, db_TICKET_LOG_STATUS, db_TICKET_CHAT} from "../commonApp/database"
 import ImgAvatar from '../components/ImgAvatar';
 import { getProfile } from '../commonApp/profile';
+import { TICKET_LIST_ITEM } from '../commonApp/dataTypes';
+import { deepObjectMerge } from '../commonApp/functions';
+import {TICKET_DETAIL_STATUS} from "../commonApp/constants"
 
 const Home = ({ navigation }) => {
 
@@ -29,8 +32,6 @@ const Home = ({ navigation }) => {
     const [filterTicket, setFilterTicket] = React.useState(FILTER_TICKETS_ALL)
     const [refreshing, setRefreshing] = useState(false);
 
-    let dataTicketBD = [] // mm - base de datos principales con los tickets
-
     const [dataListSearch, setDataListSearch] = React.useState ([]) // mm - datos a ser visualizados
     const [dataTicket, setDataTicket] = React.useState ([]) // mm - datos filtrados por los filtros
     
@@ -43,10 +44,90 @@ const Home = ({ navigation }) => {
         { id:4, title: "Ajustes", onPress: () => navigation.navigate('UserProfile') },
     ];
 
+    async function processEvent (doc)
+    {
+        try {
+            if (doc.table == db_TICKET_CHAT)
+            {
+                let item = await db_getTicketViewByTicketId (doc.data.idTicket)
+
+                if (item.length == 0) return
+                
+                item = item[0].data // mm - recupero el primer elemento porque viene un array
+                item.lastMsg = doc.data.message
+                let aux2 = TICKET_DETAIL_STATUS.find ((aux)=> aux.code == doc.data.idStatus)
+
+                // mm - si lo envie yo no lo marco
+                if (doc.data.idUserFrom != profile.idUser)
+                {
+                    item.ts = new Date()
+                    item.seen = false
+                }
+
+                await db_updateTicketListItem (item.idTicket, item)
+
+                loadData()
+            }
+            if (doc.table == db_TICKET_LOG_STATUS)
+            {
+                let item = await db_getTicketViewByTicketId (doc.data.idTicket)
+
+                if (item.length == 0) return
+                
+                item = item[0].data // mm - recupero el primer elemento porque viene un array
+                item.status = doc.data.idStatus
+                let aux2 = TICKET_DETAIL_STATUS.find ((aux)=> aux.code == doc.data.idStatus)
+                item.statusText = aux2.name
+
+                 // mm - si lo envie yo no lo marco
+                if (doc.data.idUserFrom != profile.idUser)
+                {
+                    item.ts = new Date()
+                    item.seen = false
+                }
+                
+                await db_updateTicketListItem (item.idTicket, item)
+
+                loadData()
+            }
+            if (doc.table == db_TICKET)
+            {
+                let item = new TICKET_LIST_ITEM ()
+                let data = doc.data
+                item.idTicket = doc.id
+                item.avatar = data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom
+                item.currency = doc.data.currency
+                //data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom
+                item.title = data.title
+                item.isOpen = data.isOpen
+                item.amount = data.amount
+                item.ts = new Date()
+
+                
+                // mm - determino si existe antes por si hubo un error previamente
+                debugger
+                let aux = await db_getTicketViewByTicketId (doc.data.idTicket)
+
+                if (aux.length == 0)
+                { await db_addTicketListItem (item.idTicket, item)}
+                else
+                { await db_updateTicketListItem (item.idTicket, item)}
+
+                loadData();
+            }
+        }
+        catch(e) { console.log (e); console.log ("error loaddata")}
+    }
     useEffect(() => {
         // subscribe to new-doc events to reload list
+
+        db_openDB ("ticket")
+        db_openDB ("ticket_log_status")
+        db_openDB ("ticket_chat")
+
         const off = onEvent(EVENT_NEW_DOC, (doc) => {
-            loadData();
+            console.log (doc)
+            processEvent (doc)
         });
 
         // mm - al hacer el focus elimino todas las otras ventanas
@@ -89,10 +170,29 @@ const Home = ({ navigation }) => {
             )
     );
     }
+
+    async function goToTicket (idTicket, title, isSeen)
+    {
+        if (!isSeen){
+            let item = await db_getTicketViewByTicketId (idTicket)
+            if (item.length == 0) return
+            item = item[0].data
+            item.seen= true
+            db_updateTicketListItem (idTicket, item)
+        }
+
+        navigation.navigate('TicketDetail', {idTicket: idTicket, name:title})
+    }
+    
     async function loadData()
     {
         setRefreshing (true)
-        let dataTicketBD = await db_getAllTickets ()
+        let dataTicketBD = await db_getAllTicketItem ()
+        //console.log (dataTicketBD)
+        try{
+            //dataTicketBD = dataTicketBD.sort ((a,b) => a.ts() < b.ts ? -1 : 1);
+        }
+        catch (e) {console.log (e); console.log ("Error en loaddata")}
         setDataTicket (dataTicketBD)
         setDataListSearch( dataTicketBD)
         setRefreshing(false)
@@ -115,14 +215,17 @@ const Home = ({ navigation }) => {
                 <FlatList 
                     showsVerticalScrollIndicator={ false }
                     data={ dataListSearch }
-                    keyExtractor={ (item) => item.id?.toString() }
-                    renderItem={ ({ item }) => <TicketItem item={ item} idUser={profile.idUser } /> } 
+                    keyExtractor={ (item) => item.idTicket?.toString() }
+                    renderItem={ ({ item }) => <TicketItem item={ item} idUser={profile.idUser } onClick={goToTicket} /> } 
                     contentContainerStyle={{ paddingBottom: 200 }} // Ajusta el valor según el espacio necesario
                     refreshControl={
                  <RefreshControl refreshing={refreshing} onRefresh={loadData} />}
                 />
-            { options && <SlideOptions links={ links } setOptions={ setOptions } />}
             </View>
+            
+            {/* SlideOptions debe estar fuera del contenedor con padding para posicionamiento absoluto */}
+            { options && <SlideOptions links={ links } setOptions={ setOptions } />}
+            
             <TouchableOpacity
                 onPress={() => navigation.navigate("GroupEdit", { isAddGroup: true })}
                 style={getStyles(colorScheme).floatingBtn}
@@ -130,54 +233,52 @@ const Home = ({ navigation }) => {
                 <MaterialCommunityIcons name="message-plus" size={ 20 } />
             </TouchableOpacity>
             {/* Add a button to open SlideOptions */}
-            <TouchableOpacity
-                onPress={() => setOptions(true)}
-                style={[getStyles(colorScheme).floatingBtn, { bottom: 80 }]} // Adjust position as needed
-            >
-                <Ionicons name="ellipsis-vertical" size={20} />
-            </TouchableOpacity>
+            
         </View>
     )
 }
 
-
-
-
-const TicketItem = ({ item, idUser }) => {
+const TicketItem = ({ item, idUser, onClick }) => {
     const navigation = useNavigation();
     const colorScheme = useColorScheme()
     return(
         <TouchableOpacity 
-            onPress={() => navigation.navigate('TicketDetail', {idTicket: item.id, name: item.title})} 
+            onPress={() => onClick(item.idTicket, item.title, item.seen)} 
             style={ getStyles(colorScheme).chatContainer }
         >
-            <TouchableOpacity
-                onPress={() => {
-                        navigation.navigate('TicketDetail', {idTicket: item.id, name: item.title})
-                }} 
-            >
-                <ImgAvatar id = {item.idUserFrom == idUser? item.idUserTo : item.idUserFrom} size={40}/>
+            <TouchableOpacity>
+                <ImgAvatar id = {item.avatar} size={40}/>
             </TouchableOpacity>
-            <View style={ getStyles(colorScheme).chatMessageHolder }>
-                <View style={[ tStyles.flex1 ]}>
-                    <Text style={ getStyles(colorScheme).chatUsername }>{ item.title}</Text>
-                    <View style={[ tStyles.row ]}>
-                        <Ionicons name='checkmark-done-sharp' size={ 14 } color={ colors.gray50 } />
-                        <Text style={ getStyles(colorScheme).chatMessage }>{ ellipString("fsdfsdfd", 30) }</Text>
+            <View style={{ flex: 1, marginLeft: 13, flexDirection: 'column', justifyContent: 'center' }}>
+                {/* Primera línea: title (izquierda) - ts (derecha) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <Text style={ getStyles(colorScheme).chatUsername } numberOfLines={1}>
+                        { ellipString(item.title, 20) }
+                    </Text>
+                    <Text style={ [ getStyles(colorScheme).chatTime, (!item.seen) ? getStyles(colorScheme).activeText : null ] }>
+                        { item.statusText ? `[${ellipString(item.statusText, 15)}] ` : '' }
+                    </Text>
+                </View>
+                
+                {/* Segunda línea: statusText (izquierda) - seen badge (derecha) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 4 }}>
+                    <Text style={ getStyles(colorScheme).chatMessage } numberOfLines={1}>
+                        { item.lastMsg ? ellipString(item.lastMsg, 50) : ' ' }
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Text style={ getStyles(colorScheme).chatTime }>
+                            {item.currency} {item.amount} {!item.isOpen && <Fontisto name="locked" size={15}/>}
+                        </Text>
+                        {
+                            (!item.seen)
+                            &&
+                            <View style={ getStyles(colorScheme).activeBadge }>
+                                <Text style={ getStyles(colorScheme).badgeText }></Text>
+                            </View>
+                        }
                     </View>
                 </View>
 
-                <View style={[ tStyles.endy ]}>
-                    <Text style={ [ getStyles(colorScheme).chatTime, (!item.seen) ? getStyles(colorScheme).activeText : null ] }>{ displayTime(item.time) }</Text>
-                    {
-                        (!item.seen)
-                        &&
-                        <View style={ getStyles(colorScheme).activeBadge }>
-                            <Text style={ getStyles(colorScheme).badgeText }>{ item.unread }</Text>
-                        </View>
-                    }
-                    
-                </View>
             </View>
         </TouchableOpacity>
     )

@@ -1,7 +1,5 @@
 import { TICKET } from "./dataTypes";
 import { v4 as uuidv4 } from 'uuid';
-import { URL_FILE_UPLOAD} from "./constants"
-import { Platform } from "react-native";
 
 export const getUId = () => {return uuidv4()}
 
@@ -45,9 +43,13 @@ function sum(arr, campo) {
 }
 
 export const formatNumber = (num) => {
-  const parts = num.toString().split('.');
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return parts.join(',');
+  try{
+    const parts = num.toString().split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return parts.join(',');
+  }
+  catch (e) {console.log ("Error formatNumber: " + num)}
+  return ""
 };
 export function diasEntreFechas(fecha1, fecha2 = new Date()) {
   const f1 = new Date(fecha1);
@@ -160,4 +162,27 @@ export function getPhoneCodeByCountryId(countryId) {
     // Agrega más países según sea necesario
   };
   return countryPhoneCodes[countryId] ||  { code: '+91', name: '' };
+}
+
+function isObject(item) {
+  return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+// mm - combino 2 objetos con profundidad
+export function deepObjectMerge(target = {}, source = {}) {
+  try{
+    const result = { ...target };
+    Object.keys(source).forEach(key => {
+        const srcVal = source[key];
+        const tgtVal = target ? target[key] : undefined;
+        if (isObject(srcVal) && isObject(tgtVal)) {
+            result[key] = deepObjectMerge(tgtVal, srcVal);
+        } else {
+            // arrays and non-objects are replaced by source
+            result[key] = srcVal;
+        }
+    });
+    return result;
+  }
+    catch (e) { console.log ("error deepObjectMerge: " + JSON.stringify(e))}
 }

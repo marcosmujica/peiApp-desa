@@ -11,7 +11,7 @@ import Hr from '../components/Hr';
 
 const Settings = ({ navigation }) => {
     const mode = useColorScheme();
-    const { options, showAlertModal } = React.useContext(AppContext);
+    const { options, setOptions, showAlertModal } = React.useContext(AppContext);
     const links = [
         { id:1, title: "Clear call log", onPress: () => {} },
         { id:2, title: "Settings", onPress: () => {} },
@@ -143,7 +143,7 @@ const Settings = ({ navigation }) => {
             </ScrollView>
 
             {/* Slide Options */}
-            { options && <SlideOptions links={ links } />}
+            { options && <SlideOptions links={ links } setOptions={ setOptions } />}
 
         </View>
     )

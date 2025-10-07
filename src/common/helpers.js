@@ -15,6 +15,7 @@ export function displayTime(timestamp) {
 }
 
 export function ellipString(str, size) {
+    if (str=="" || str==undefined) return
     if(str.length > size){
         return str.substring(0, size)+'...';
     }else{

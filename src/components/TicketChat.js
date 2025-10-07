@@ -55,7 +55,9 @@ const TicketChat = ({idTicket}) => {
   
   let listener // mm - no sacar
 
-  useEffect(() => {
+  useEffect(() => 
+    {
+      debugger
     refreshData();
     // OJO!!! hay que cancelar el listener cuando se abandona el componente
     listener = db_listener_newMsgChat(idTicket, newMsgTicket);

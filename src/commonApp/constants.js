@@ -32,6 +32,10 @@ export const TICKET_FRECUENCY = [
   {code: "annual", name: "Anualmente"}
 ]
 
+export const TICKET_INFO_TYPE_PAY_PLANNED= "planned"
+export const TICKET_INFO_TYPE_PAY_IMPULSIVED ="impulsived"
+export const TICKET_INFO_TYPE_PAY_UNEXPECTED ="unexpected"
+
 // mm - el tipo de ticket
 export const TICKET_TYPE_SINGLE = "single"
 export const TICKET_TYPE_RECURRENT = "recurrent"
@@ -79,7 +83,6 @@ export const TICKET_DETAIL_STATUS = [
   { code: TICKET_DETAIL_DUE_DATE_STATUS, name:"Vencido", system: true, user: false, admin: true, editable: false},
   { code: TICKET_DETAIL_CANCELED_STATUS, name:"Cancelado", system: false, user: false, admin: true, editable: false},
   { code: TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, name:"Cambia Vencimiento", system: false, user: true, admin: true, editable: true},
-  { code: TICKET_DETAIL_DISPUTE_STATUS, name:"En disputa", system: false, user: true, admin: true, editable: true},
   { code: TICKET_DETAIL_DISPUTE_STATUS, name:"En disputa", system: false, user: true, admin: true, editable: true},
 
 ].sort ((a,b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1);

@@ -4,6 +4,7 @@ import { getProfile } from './profile';
 import { Platform } from 'react-native';
 import dbInstance from './dbInstance';
 import {deepObjectMerge} from './functions';
+import dbChanges from './DBChanges';
 
 
 export const db_OTP = "otp"
@@ -21,11 +22,18 @@ export const db_RATING = "ticket_rating"
 export const db_TICKET_INFO = "ticket_info"
 export const db_TICKET_VIEW = "ticket_view"
 
-//_urlRemoteDB = "http://localhost:5984"
-const _urlRemoteDB = "http://192.168.68.53:5984"
+const DB_URL = "http://34.39.168.70:5984"
+const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
+const DB_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
+
 
 // Obtener la instancia global de la base de datos
 const _db = dbInstance.getDB();
+
+export async function db_initListener()
+{
+    dbChanges.init ()
+}
 
 export async function db_getLocalProfile ()
 {
@@ -39,7 +47,8 @@ export async function db_getLocalProfile ()
         }    
         return (aux)
     }
-    catch (e) {console.log ("Error db_getLocalProfile: " + JSON.stringify(e))
+    catch (e) {console.log ("Error db_getLocalProfile")
+        console.log (e)
     }
 
 }
@@ -60,11 +69,8 @@ export async function db_updateTicketRating (idTicket, rating)
 }
 export async function db_getTicketRating (idTicket)
 {
- let aux = await db_getAll (db_RATING)
- if (!aux) return 0
-
- let aux2 = aux.find ((item) => item.idTicket == idTicket)
- return (aux2 == undefined ? 0 : aux2.rating)
+    let aux = await db_find (db_RATING, {idTicket:idTicket})
+    return (aux.length ==0 ? 0 : aux[0].rating)
 }
 
 export async function db_updateGroupUsers (id, data)
@@ -90,21 +96,14 @@ export async function db_addUserConfig(id, doc)
 }
 
 export async function db_getTicketChat(idTicket)
-{ let data = await db_find (db_TICKET_CHAT, {idTicket: idTicket})
-  return data.map (item=>item.data)}
+{ return (await db_find (db_TICKET_CHAT, {idTicket: idTicket}))}
 
 export async function db_getTicketLog(idTicket)
-//{ return (await db_find (db_TICKET_LOG_STATUS, {idTicket: {$eq: idTicket}}, ['_id', 'idUser', 'idStatus', 'TS', 'note', 'currency', 'amount', 'message'], null, "", null))}
-{ let aux = await db_getAll (db_TICKET_LOG_STATUS)
-  if (aux != [])
-    { aux = aux.filter((item)=> item.idTicket == idTicket)}
-  return aux
-}
+{ return (await db_find (db_TICKET_LOG_STATUS, {idTicket:idTicket}))}
 
 export async function db_getTicketLogByStatus(idTicket, idStatus, sortBy="TS", order="asc") // por defecto ordeno por TS
 {    
     let results = await db_find(db_TICKET_LOG_STATUS, { idTicket: idTicket, idStatus: idStatus });
-    results = results.map (item=>item.data)
     if (Array.isArray(results) && results.length > 0) {
         if (order === "asc") {
             results.sort((a, b) => (a[sortBy] ?? 0) - (b[sortBy] ?? 0));
@@ -126,8 +125,7 @@ export async function db_getTicket(idTicket)
 {return (await db_get (db_TICKET, idTicket))}   
 
 export async function db_getTicketInfo(idTicket)
-{let data = await db_find (db_TICKET_INFO, {"idTicket" : idTicket})
-return data.map (item=>item.data)}
+{return (await db_find (db_TICKET_INFO, {"idTicket" : idTicket}))}
 
 export async function db_updateTicket (idTicket, data)
 { return (await db_updateDoc (db_TICKET, idTicket, data))}
@@ -137,7 +135,9 @@ export async function db_updateTicketListItem (idTicket, data)
 
 export async function db_getTicketViewByTicketId (idTicket)
 {
-    return await db_find (db_TICKET_VIEW, {idTicket:idTicket})
+    let aux = await db_find (db_TICKET_VIEW, {idTicket:idTicket})
+    if (aux!=false) return (aux[0])
+    return false
 }
 
 export async function db_updateTicketInfo (idTicket, idUser, type, data)
@@ -155,17 +155,15 @@ export async function db_updateTicketInfo (idTicket, idUser, type, data)
 export async function db_getAllTickets ()
 { return (await db_getAll (db_TICKET))}
 
-export async function db_getAllTicketItem (data)
-{ let aux = await db_find (db_TICKET_VIEW, data)
-    return (aux.map ((item)=> item.data))
-}
+export async function db_getAllTicketItem (data={})
+{ return (await db_find (db_TICKET_VIEW, data))}
 
 export async function db_getGroupInfo (id)
 { return (await db_get (db_GROUP_TICKET, id))}
 
 export async function db_saveProfile(profile)
 {
-    return await db_updateDoc (db_PROFILE, "profile", profile)
+    return await db_add (db_PROFILE, "profile", profile)
 }
 
 export async function db_setNewUser(id, data) {
@@ -190,7 +188,7 @@ export async function db_checkOTP(phone, otp)
         try 
         {
             let db = await getDbByName(db_OTP)
-            auxCheck = await db_get(db_OTP, "otp" )
+            auxCheck = await db_get(db_OTP, "otp" + phone )
 
             return (auxCheck["otp"] == otp && auxCheck["phone"] == phone ? true : false)
         }
@@ -208,7 +206,7 @@ export async function db_setOTP(phone)
 
     console.log (otp)
     const aux = new OTP (phone, otp, new Date())
-    await db_add (db_OTP, "otp", aux)    
+    await db_add (db_OTP, "otp" + phone, aux)    
 }
 
 export async function db_addHelpDesk (data)
@@ -245,8 +243,7 @@ async function getDbByName (dbName)
     if (db.created === false)
     {
         try{
-            // mm - si es local o sync siempre tengo que crear una base de datos local
-            let aux = new DB({name:dbName, type: db.syncSide, index: db.index, live: db.live})
+            let aux = new DB(db.name, { couchUrl: DB_URL, username: DB_USERNAME, password: DB_PASSWORD, isRemote: db.syncSide=="REMOTE" ? true : false, indices: db.index, emitEvent: db.emitEvent})
             await aux.initDB()
             db.created = true
             db.dbLocal = aux
@@ -267,12 +264,10 @@ async function db_updateDoc (dbName, id, docNew)
 {
     try{
 
-        
         let db= await getDbByName (dbName)
         let doc = await db.getWithHeader(id)
         if (doc==false) { return false}
-        doc.data = docNew
-        return await db.update(id, doc.data, doc._rev);
+        return await db.update(id, docNew, doc._rev);
     }
     catch (e) {
         console.log (e);console.log ("Error update: " + JSON.stringify(e))}
@@ -282,7 +277,6 @@ async function db_updateDoc2 (dbName, id, docNew)
 {
     try{
 
-        debugger
         let db= await getDbByName (dbName)
         let doc = await db.getWithHeader(id)
         
@@ -300,8 +294,8 @@ async function db_getAll (base){
     {
         let aux =   await getDbByName (base)
         // mm - devuelvo el campo data de los registros
-        let records = await aux.getAll ()
-        return records.map(item => ({ ...item.data, id: item.id }))
+        return await aux.getAll ()
+        
         
     }
     catch (e) {console.log ("Error db_getAll: " + JSON.stringify(e))}
@@ -310,7 +304,7 @@ async function db_getAll (base){
 async function db_find (base, dataSearch)
 {
     let aux = await getDbByName (base)
-    return aux.find (dataSearch)
+    return (await aux.find (dataSearch))
 }
 
  async function db_get (base, id)

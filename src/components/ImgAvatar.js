@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Image } from "expo-image";
-import { URL_AVATAR_IMG } from "../commonApp/constants"
+import { URL_AVATAR_IMG, URL_FILE_AVATAR_PREFIX } from "../commonApp/constants"
 
 export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 }) {
   if (id =="") return
@@ -11,7 +11,7 @@ export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 
   
   // Generar sufijo aleatorio de 5 dígitos si cache es true
   const randomSuffix = cache ? Math.floor(Math.random() * 90000 + 10000).toString() : '';
-  const imageUrl = `${URL_AVATAR_IMG}avatar_${id}.jpg${!cache ? '?' + randomSuffix : ''}`;
+  const imageUrl = `${URL_AVATAR_IMG}${URL_FILE_AVATAR_PREFIX}${id}.jpg${!cache ? '?' + randomSuffix : ''}`;
 
   if (id == "") {imageUrl == null}
   const initials = name

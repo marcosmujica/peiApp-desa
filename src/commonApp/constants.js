@@ -12,8 +12,7 @@ const DEV_IP = Platform.OS === 'web' ? 'localhost' : '10.102.2.77'; // Cambia es
 
 export const URL_AVATAR_IMG = `http://34.39.168.70:3000/uploads/`
 export const URL_FILE_UPLOAD = `http://34.39.168.70:3000/upload/`
-//export const URL_FILE_UPLOAD = `http://192.168.68.51:3000/upload/`
-//export const URL_FILE_DOWNLOAD = `http://192.168.68.51:3000/uploads/`
+export const URL_AVATAR_IMG_UPLOAD = `http://34.39.168.70:3000/upload/`
 export const URL_FILE_DOWNLOAD = `http://34.39.168.70:3000/uploads/`
 export const URL_FILE_AVATAR_PREFIX = `avatar__`
 export const URL_FILE_SMALL_PREFIX = `small__`

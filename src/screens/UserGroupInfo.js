@@ -102,16 +102,9 @@ const UserGroupInfo = ({ navigation, route }) => {
     let result;
     if (isAddGroup) {
       console.log("entro");
-      result = await db_addGroupUsers(
-        USER_PREFIX_GROUP + uuidv4(),
-        ticketGroup
-      );
-      result
-        ? navigation.navigate("NewTicket", { idTicketGroup: result})
-        : showAlertModal(
-            "Error",
-            "Error al crear el grupo, por favor verifica"
-          );
+
+      result = await db_addGroupUsers( uuidv4(), ticketGroup );
+      result ? navigation.navigate("NewTicket", { idTicketGroup: result}) : showAlertModal( "Error", "Error al crear el grupo, por favor verifica" );
     }
 
     if (isUpdateGroup) {

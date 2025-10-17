@@ -29,14 +29,14 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const Viewer = ({ navigation, route }) => {
     const [isLoading, setIsLoading] = React.useState (false)
-    const baseUrl = URL_FILE_DOWNLOAD + URL_FILE_NORMAL_PREFIX + route.params.filename
+    const baseUrl = route.params.filename
     const [url, setUrl] = useState (baseUrl + '?t=' + Date.now())
 
     // Reload the image every time the screen is focused (cache-busting token)
     useFocusEffect(
       useCallback(() => {
         setUrl(baseUrl)
-        console.log (url)
+        console.log (baseUrl)
       }, [baseUrl])
     );
 

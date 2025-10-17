@@ -42,14 +42,18 @@ const Profile_Info = ({ navigation, route }) => {
   const [instagram, setInstagram] = React.useState("");
   const [loading, setLoading] = React.useState("");
   const [sex, setSex] = React.useState(SEX_DEFAULT);
+  const [countryName, setCountryName] = React.useState("");
+  const [profile, setProfileInfo] = React.useState ({})
 
-  let profile = getProfile(); // mm - obtengo los datos del profile
+  
   // Aquí podés hacer cosas que se ejecutan una vez al cargar el componente
   useEffect(() => {
+    setProfileInfo (getProfile())
     setMyName(profile.name);
     setAbout(profile.about);
     setemail(profile.email);
     setSex(profile.sex);
+    setCountryName(profile.countryName);
 
     return () => {
       // Esto se ejecuta cuando el componente se va de pantalla
@@ -94,7 +98,6 @@ const Profile_Info = ({ navigation, route }) => {
       user.web = web;
       user.sex = sex;
 
-      console.log (user)
       try {
         await db_setNewUser(idUser, user);
         profile.name = user.name;
@@ -105,7 +108,6 @@ const Profile_Info = ({ navigation, route }) => {
         profile.email = email;
         profile.sex = sex;
 
-        console.log(profile);
         await setProfile(profile);
         //await db_addUserConfig(profile.idUser, new USER_CONFIG());
         //await setInitGroupBy();
@@ -186,7 +188,7 @@ const Profile_Info = ({ navigation, route }) => {
         </Text>
       </View>
       <View style={{ padding: 10 }}>
-        <Text style={getStyles(mode).sectionTitle}>País: {profile.countryName}</Text>
+        <Text style={getStyles(mode).sectionTitle}>País: {countryName}</Text>
       </View>
 
       <View style={{ padding: 10 }}>

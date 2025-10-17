@@ -436,10 +436,8 @@ export class DB {
   }
   /**
    * Guarda un documento en la base de datos local
-   * @param {Object} doc - Documento a guardar
-   * @param {boolean} shouldEmitEvent - Si debe emitir evento (default: true para cambios locales, false para sync)
    */
-  async _putLocal(doc, shouldEmitEvent = true) {
+  async _putLocal(doc) {
     try{
       // Validar que la base de datos esté lista
       await this._validateDatabaseReady();
@@ -490,7 +488,7 @@ export class DB {
           ]
         );
         
-        if (this.emitEvent && shouldEmitEvent)
+        if (this.emitEvent)
         {
           let event = new DB_EVENT ()
           debugger
@@ -696,7 +694,7 @@ export class DB {
       if (!localDoc) {
         // No existe localmente, aplicar el cambio remoto directamente
         remoteDoc.syncStatus = 'synced';
-        await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+        await this._putLocal(remoteDoc);
         //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto nuevo: ${remoteDoc._id}`);
       } else {
         // Existe localmente - resolver conflicto por updatedAt
@@ -706,12 +704,12 @@ export class DB {
         if (remoteUpdatedAt >= localUpdatedAt) {
           // La versión remota es más reciente o igual - aplicar
           remoteDoc.syncStatus = 'synced';
-          await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+          await this._putLocal(remoteDoc);
           //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto más reciente: ${remoteDoc._id} (${new Date(remoteUpdatedAt).toISOString()} >= ${new Date(localUpdatedAt).toISOString()})`);
         } else {
           // La versión local es más reciente - mantener local y marcar para sincronizar
           localDoc.syncStatus = 'pending';
-          await this._putLocal(localDoc, false); // No emitir evento - es una actualización de syncStatus
+          await this._putLocal(localDoc);
           //console.log(`[DB:${this.dbName}] ⚠ Versión local más reciente, manteniendo: ${localDoc._id} (${new Date(localUpdatedAt).toISOString()} > ${new Date(remoteUpdatedAt).toISOString()})`);
           
           // Programar sincronización inmediata para enviar la versión local al servidor
@@ -777,13 +775,13 @@ export class DB {
           
           if (deleteResponse.ok) {
             doc.syncStatus = 'synced';
-            await this._putLocal(doc, false); // No emitir evento - actualización de sync
+            await this._putLocal(doc);
             //console.log(`[DB:${this.dbName}] ✓ Documento ${doc._id} eliminado remotamente`);
           }
         } else if (getResponse.status === 404) {
           // Ya no existe remotamente, marcar como sincronizado
           doc.syncStatus = 'synced';
-          await this._putLocal(doc, false); // No emitir evento - actualización de sync
+          await this._putLocal(doc);
         }
       } else {
         // Crear o actualizar documento
@@ -817,7 +815,7 @@ export class DB {
             // El documento remoto es más reciente - actualizar local
             //console.log(`[DB:${this.dbName}] Servidor más reciente (${new Date(remoteUpdatedAt).toISOString()} > ${new Date(localUpdatedAt).toISOString()}), actualizando cliente`);
             remoteDoc.syncStatus = 'synced';
-            await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+            await this._putLocal(remoteDoc);
             shouldSync = false; // No enviar al servidor
           } else {
             // Timestamps iguales o sin updatedAt - enviar al servidor (por defecto)
@@ -859,7 +857,7 @@ export class DB {
             // Actualizar con el _rev del servidor
             doc._rev = result.rev;
             doc.syncStatus = 'synced';
-            await this._putLocal(doc, false); // No emitir evento - actualización de syncStatus
+            await this._putLocal(doc);
             //console.log(`[DB:${this.dbName}] ✓ Documento ${doc._id} sincronizado remotamente con _rev ${result.rev}`);
           } else {
             const errorText = await response.text();

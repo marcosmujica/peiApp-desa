@@ -157,7 +157,6 @@ const NewTicket = ({ navigation, route }) => {
       groupBy.idUserOwner = profile.idUser;
       idTicketGroupBy = await db_addGroupByTicket(groupBy);
     }
-
     for (const item of groupUsersList) {
       let idToUser = item.contact;
       // mm - para no crearle un ticket al creador del ticket

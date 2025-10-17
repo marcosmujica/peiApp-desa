@@ -1,10 +1,12 @@
 import EventEmitter from "eventemitter3";
 
-export const EVENT_NEW_DOC = "db_newdoc";
+export const EVENT_DB_CHANGE = "EVENT_DB_CHANGE";
 
 const emitter = new EventEmitter();
 
 export function emitEvent(eventName, payload) {
+	console.log ("payload event")
+	console.log (payload)
 	emitter.emit(eventName, payload);
 }
 

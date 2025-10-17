@@ -1,5 +1,5 @@
 import React, { useState,useEffect } from 'react';
-import { onEvent, offEvent, EVENT_NEW_DOC } from '../commonApp/DBEvents';
+import { onEvent, offEvent, EVENT_DB_CHANGE } from '../commonApp/DBEvents';
 import { View, Text, TextInput, Image,RefreshControl, FlatList, TouchableOpacity, useColorScheme } from 'react-native';
 import { Fontisto, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, tStyles } from '../common/theme';
@@ -10,12 +10,12 @@ import AppContext from '../context/appContext';
 import { displayTime, ellipString } from '../common/helpers';
 import SearchBar  from '../components/SearchBar';
 import BadgeBtn from "../components/BadgeBtn"
-import {db_openDB, db_getTicketViewByTicketId, db_getAllTicketItem, db_updateTicketListItem, db_addTicketListItem, db_TICKET, db_getAllTickets, db_TICKET_LOG_STATUS, db_TICKET_CHAT} from "../commonApp/database"
+import {db_getAllTicketInfoView, db_initListener, db_openDB, db_getTicketViewByTicketId, db_getAllTicketItem, db_updateTicketListItem, db_addTicketListItem, db_TICKET, db_getAllTickets, db_TICKET_LOG_STATUS, db_TICKET_CHAT} from "../commonApp/database"
 import ImgAvatar from '../components/ImgAvatar';
 import { getProfile } from '../commonApp/profile';
 import { TICKET_LIST_ITEM } from '../commonApp/dataTypes';
-import { deepObjectMerge } from '../commonApp/functions';
-import {TICKET_DETAIL_STATUS} from "../commonApp/constants"
+import { formatNumber, deepObjectMerge } from '../commonApp/functions';
+import {TICKET_DETAIL_STATUS,  TICKET_TYPE_COLLECT,TICKET_TYPE_PAY} from "../commonApp/constants"
 
 const Home = ({ navigation }) => {
 
@@ -44,8 +44,31 @@ const Home = ({ navigation }) => {
         { id:4, title: "Ajustes", onPress: () => navigation.navigate('UserProfile') },
     ];
 
+    function filterTicketByStatus (filter)
+    {
+        setFilterTicket (filter)
+        setRefreshing (true)
+        if (filter == FILTER_TICKETS_ALL) 
+        {
+            setDataListSearch( dataTicket)
+        }
+        if (filter == FILTER_TICKETS_CLOSE) 
+        {
+            let aux = dataTicket.filter ((item) => item.isOpen === false)
+            setDataListSearch( aux)
+        }
+        if (filter == FILTER_TICKETS_OPEN) 
+        {
+            let aux = dataTicket.filter ((item) => item.isOpen === true)
+            setDataListSearch( aux)
+        }
+
+        setRefreshing (false)
+    }
     async function processEvent (doc)
     {
+        console.log ("🔔 EVENT RECEIVED:", doc.table, doc._id)
+        //return
         try {
             if (doc.table == db_TICKET_CHAT)
             {
@@ -53,8 +76,11 @@ const Home = ({ navigation }) => {
 
                 if (item.length == 0) return
                 
-                item = item[0].data // mm - recupero el primer elemento porque viene un array
                 item.lastMsg = doc.data.message
+                
+                if (doc.data.mediaType == "image") item.lastMsg = ">> Foto"
+                if (doc.data.mediaType == "file") item.lastMsg = ">> Archivo"
+
                 let aux2 = TICKET_DETAIL_STATUS.find ((aux)=> aux.code == doc.data.idStatus)
 
                 // mm - si lo envie yo no lo marco
@@ -64,9 +90,11 @@ const Home = ({ navigation }) => {
                     item.seen = false
                 }
 
-                await db_updateTicketListItem (item.idTicket, item)
+                // mm - NO actualizar la BD aquí, solo actualizar el estado UI
+                // await db_updateTicketListItem (item.idTicket, item)
 
-                loadData()
+                // mm - actualizar solo el item específico en el estado
+                updateTicketInList(item.idTicket, item)
             }
             if (doc.table == db_TICKET_LOG_STATUS)
             {
@@ -74,7 +102,6 @@ const Home = ({ navigation }) => {
 
                 if (item.length == 0) return
                 
-                item = item[0].data // mm - recupero el primer elemento porque viene un array
                 item.status = doc.data.idStatus
                 let aux2 = TICKET_DETAIL_STATUS.find ((aux)=> aux.code == doc.data.idStatus)
                 item.statusText = aux2.name
@@ -86,57 +113,115 @@ const Home = ({ navigation }) => {
                     item.seen = false
                 }
                 
-                await db_updateTicketListItem (item.idTicket, item)
+                // mm - NO actualizar la BD aquí, solo actualizar el estado UI
+                // await db_updateTicketListItem (item.idTicket, item)
 
-                loadData()
+                // mm - actualizar solo el item específico en el estado
+                updateTicketInList(item.idTicket, item)
             }
             if (doc.table == db_TICKET)
             {
                 let item = new TICKET_LIST_ITEM ()
                 let data = doc.data
-                item.idTicket = doc.id
+                item.idTicket = doc._id
                 item.avatar = data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom
                 item.currency = doc.data.currency
-                //data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom
                 item.title = data.title
                 item.isOpen = data.isOpen
                 item.amount = data.amount
+                item.way = data.way
                 item.ts = new Date()
 
                 
                 // mm - determino si existe antes por si hubo un error previamente
-                debugger
-                let aux = await db_getTicketViewByTicketId (doc.data.idTicket)
+                let aux = await db_getTicketViewByTicketId (doc._id)
 
-                if (aux.length == 0)
-                { await db_addTicketListItem (item.idTicket, item)}
-                else
-                { await db_updateTicketListItem (item.idTicket, item)}
-
-                loadData();
+                if (!aux){
+                    // mm- agrego si no estaba previamente en ticket_view
+                    await db_addTicketListItem (item.idTicket, item)
+                }
+                
+                // mm - actualizar solo el item específico en el estado
+                updateTicketInList(item.idTicket, item)
             }
         }
-        catch(e) { console.log (e); console.log ("error loaddata")}
+        catch(e) { console.log (e); console.log ("❌ error processEvent")}
     }
+
+    // mm - función para actualizar un ticket específico en la lista sin recargar todo
+    function updateTicketInList(idTicket, updatedItem) {
+        setDataTicket(prevData => {
+            const index = prevData.findIndex(t => t.idTicket === idTicket)
+            let newData
+            
+            if (index !== -1) {
+                // Actualizar ticket existente
+                newData = [...prevData]
+                newData[index] = { ...newData[index], ...updatedItem }
+            } else {
+                // Agregar nuevo ticket
+                newData = [...prevData, updatedItem]
+            }
+            
+            // Reordenar por timestamp
+            newData.sort((a, b) => {
+                const dateA = new Date(a.ts).getTime()
+                const dateB = new Date(b.ts).getTime()
+                return dateB - dateA
+            })
+            
+            return newData
+        })
+        
+        // Actualizar también la lista de búsqueda
+        setDataListSearch(prevData => {
+            const index = prevData.findIndex(t => t.idTicket === idTicket)
+            let newData
+            
+            if (index !== -1) {
+                newData = [...prevData]
+                newData[index] = { ...newData[index], ...updatedItem }
+            } else {
+                newData = [...prevData, updatedItem]
+            }
+            
+            newData.sort((a, b) => {
+                const dateA = new Date(a.ts).getTime()
+                const dateB = new Date(b.ts).getTime()
+                return dateB - dateA
+            })
+            
+            return newData
+        })
+    }
+
+    async function checkDB ()
+    {
+        //await db_openDB ("ticket")
+        //await db_openDB ("ticket_log_status")
+        //await db_openDB ("ticket_chat")
+
+        db_initListener()
+    }
+
     useEffect(() => {
         // subscribe to new-doc events to reload list
 
-        db_openDB ("ticket")
-        db_openDB ("ticket_log_status")
-        db_openDB ("ticket_chat")
+        checkDB ()
+        loadData()
 
-        const off = onEvent(EVENT_NEW_DOC, (doc) => {
-            console.log (doc)
+        const off = onEvent(EVENT_DB_CHANGE, (doc) => {
+            console.log ("VOY A PROCESAR EVENTO")
             processEvent (doc)
         });
 
         // mm - al hacer el focus elimino todas las otras ventanas
          const onFocus = () => {
-            loadData();
+        
+            checkDB()
+
+            //loadData();
             try {
-                // Prune the navigation state by resetting to the current active route.
-                // Use navigation.reset instead of dispatching a raw state updater to avoid
-                // emitting low-level actions (like 'tab') that may not be handled.
                 navigation.reset((state) => {
                     const active = state.routes[state.index];
                     if (!active || state.routes.length === 1) return state;
@@ -157,7 +242,7 @@ const Home = ({ navigation }) => {
             (typeof off === 'function') && off();
             unsubscribe();
         };
-    }, [navigation]);
+    }, []);
     
 
     function searchText (textToSearch)
@@ -173,29 +258,66 @@ const Home = ({ navigation }) => {
 
     async function goToTicket (idTicket, title, isSeen)
     {
+        navigation.navigate('TicketDetail', {idTicket: idTicket, name:title})
         if (!isSeen){
             let item = await db_getTicketViewByTicketId (idTicket)
-            if (item.length == 0) return
-            item = item[0].data
+            if (!item) return
             item.seen= true
-            db_updateTicketListItem (idTicket, item)
+            await db_updateTicketListItem (idTicket, item)
         }
 
-        navigation.navigate('TicketDetail', {idTicket: idTicket, name:title})
     }
     
     async function loadData()
     {
-        setRefreshing (true)
-        let dataTicketBD = await db_getAllTicketItem ()
-        //console.log (dataTicketBD)
         try{
-            //dataTicketBD = dataTicketBD.sort ((a,b) => a.ts() < b.ts ? -1 : 1);
+            //mm - busco desde la bd de tickets y hago join con ticketitem por si no se sicronizo bien y existen tickets en ticket y no se muestran
+            //setRefreshing (true)
+            const ticketList = await db_getAllTickets ()
+            const ticketView = await db_getAllTicketItem ()
+            const ticketViewList = new Map(ticketView.map(u => [u.id, u]));
+
+            let dataTicketBD = []
+
+            for (let i=0;i<ticketList.length;i++)
+            {
+                let aux = new TICKET_LIST_ITEM()
+                let ticket = ticketList[i]
+                aux.amount = ticket.amount
+                aux.avatar = ticket.idUserCreatedBy == profile.idUser ? ticket.idUserTo : ticket.idUserFrom
+                aux.currency = ticket.currency
+                aux.idTicket = ticket.id
+                aux.isOpen = ticket.isOpen
+                aux.title = ticket.title
+                
+                
+                // mm - busco el detalle del listview para el ticket
+                let item = ticketViewList.get (ticket.id)
+                if (item!= undefined)
+                {
+                    aux.lastMsg = item.lastMsg
+                    aux.seen = item.seen
+                    aux.status = item.status
+                    aux.statusText = item.statusText
+                    aux.ts = item.ts
+                    aux.unread = item.unread
+                }
+                dataTicketBD.push (aux)
+            }            
+            try{
+                // mm - ordeno descendentemente por ts (más reciente primero)
+                dataTicketBD = dataTicketBD.sort((a, b) => {
+                    const dateA = new Date(a.ts).getTime();
+                    const dateB = new Date(b.ts).getTime();
+                    return dateB - dateA;
+                });
+            }
+            catch (e) {console.log (e); console.log ("Error en loaddata en sort")}
+            setDataTicket (dataTicketBD)
+            setDataListSearch( dataTicketBD)
+            setRefreshing(false)
         }
-        catch (e) {console.log (e); console.log ("Error en loaddata")}
-        setDataTicket (dataTicketBD)
-        setDataListSearch( dataTicketBD)
-        setRefreshing(false)
+        catch (e) {console.log ("error en loaddata");console.log (e)}
     }
     return(
         <View style={ getStyles(colorScheme).container }>
@@ -207,10 +329,10 @@ const Home = ({ navigation }) => {
                   idActive={FILTER_TICKETS}
                 />
 
-                {filter == FILTER_TICKETS && <BadgeBtn items={[{id: FILTER_TICKETS_ALL, title: "Todos", active: filterTicket == FILTER_TICKETS_ALL,onClick: () => setFilterTicket(FILTER_TICKETS_ALL)},
-                    {id: FILTER_TICKETS_OPEN,title: "Abiertos",active: filterTicket == FILTER_TICKETS_OPEN,onClick: () => setFilterTicket(FILTER_TICKETS_OPEN),},
-                    {id: FILTER_TICKETS_CLOSE,title: "Cerrados",active: filterTicket == FILTER_TICKETS_CLOSE,onClick: () => setFilterTicket(FILTER_TICKETS_CLOSE),},]}
-                    idActive={FILTER_TICKETS_ALL}
+                {filter == FILTER_TICKETS && <BadgeBtn items={[{id: FILTER_TICKETS_ALL, title: "Todos", active: filterTicket == FILTER_TICKETS_ALL,onClick: () => filterTicketByStatus(FILTER_TICKETS_ALL)},
+                    {id: FILTER_TICKETS_OPEN,title: "Abiertos",active: filterTicket == FILTER_TICKETS_OPEN,onClick: () => filterTicketByStatus(FILTER_TICKETS_OPEN),},
+                    {id: FILTER_TICKETS_CLOSE,title: "Cerrados",active: filterTicket == FILTER_TICKETS_CLOSE,onClick: () => filterTicketByStatus(FILTER_TICKETS_CLOSE),},]}
+                    idActive={filterTicket}
                     />}
                 <FlatList 
                     showsVerticalScrollIndicator={ false }
@@ -265,10 +387,14 @@ const TicketItem = ({ item, idUser, onClick }) => {
                     <Text style={ getStyles(colorScheme).chatMessage } numberOfLines={1}>
                         { item.lastMsg ? ellipString(item.lastMsg, 50) : ' ' }
                     </Text>
+                    
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Text style={ getStyles(colorScheme).chatTime }>
-                            {item.currency} {item.amount} {!item.isOpen && <Fontisto name="locked" size={15}/>}
-                        </Text>
+                        {item.way == TICKET_TYPE_PAY &&<Text style={ [getStyles(colorScheme).chatTime, {color:"#c53131ff"} ]}>
+                            - {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15}/>}
+                        </Text>}
+                        {item.way == TICKET_TYPE_COLLECT && <Text style={ [getStyles(colorScheme).chatTime,  ]}>
+                            {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15}/>}
+                        </Text>}
                         {
                             (!item.seen)
                             &&

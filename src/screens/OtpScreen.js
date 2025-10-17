@@ -40,7 +40,9 @@ const OTPScreen = ({ navigation }) => {
       try {
         setLoading(true);
         setVisibleBtn(false);
+        debugger
         let aux = await db_checkOTP(profile.phone, otp);
+        
         if (aux) {
           await firstLogging();
           navigation.navigate("Profile_Info", { idUser: null });
@@ -81,7 +83,7 @@ const OTPScreen = ({ navigation }) => {
 
         <View style={{ paddingHorizontal: 35, marginTop: 20 }}>
           <Text style={[getStyles(mode).subNormalText,{ textAlign: "center"}]}>
-          {`Hemos enviado un SMS con un código de autorización a\n${profile.phone}\n\n.`}
+          {`Hemos enviado un SMS con un código de autorización a\n${profile.phone}.\n\n`}
           </Text>
             <Text
               onPress={() => navigation.navigate("Login")}

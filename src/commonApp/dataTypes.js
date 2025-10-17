@@ -1,4 +1,6 @@
+import 'react-native-get-random-values';
 import {TICKET_INFO_TYPE_COLLECT, TICKET_USE_TYPE_PERSONAL, TICKET_LOG_DETAIL_TYPE_STATUS, TICKET_DETAIL_DEFAULT_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_SINGLE, TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE, TICKET_INFO_TYPE_PAY_PLANNED} from "./constants";
+import { v4 as uuidv4 } from "uuid";
 
 
 export class GROUP_TICKETS {
@@ -185,18 +187,17 @@ export class TICKET {
 
 export class TICKET_CHAT {
   constructor(){
-    {
-      this.type = "message",
-      this.idTicket = "",
-      this.idUserFrom = "" // mm - id de usuario que envia el mensaje
-      this.idUserTo = "" // mm - id de usuario que reciibe  el mensaje
-      this.message = "",
-      this.localUri = "", // mm - nombre del archivo local
-      this.filename= "" // mm - nombre del archivo remoto
-      this.mediaType = "" // mm - tipo de archivo
-      this.size = ""
-      this.TSSent = new Date()
-    }
+    this.type = "message";
+    this.id = uuidv4();
+    this.idTicket = "";
+    this.idUserFrom = ""; // mm - id de usuario que envia el mensaje
+    this.idUserTo = ""; // mm - id de usuario que reciibe  el mensaje
+    this.message = "";
+    this.localUri = ""; // mm - nombre del archivo local
+    this.filename = ""; // mm - nombre del archivo remoto
+    this.mediaType = ""; // mm - tipo de archivo
+    this.size = "";
+    this.TSSent = new Date();
   }
 }
 
@@ -325,6 +326,17 @@ export class USER_CONFIG {
   }
 }
 
+export class DB_EVENT {
+  constructor()
+  {
+    this.table = ""
+    this._id = ""
+    this.seq = ""
+    this._rev = ""
+    this.data = {}
+    this.source = "" // mm - si es local o remoto desde donde se genera la info
+  }
+}
 
 // mm - obtengo en un array de valores los valores que tiene una clase
 export function getObjVarList(obj) {

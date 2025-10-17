@@ -23,6 +23,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { v4 as uuidv4 } from "uuid";
 import { getFileAndUpload, uploadFileToServer } from "../commonApp/attachFile";
 import { displayTime, ellipString } from "../common/helpers";
+
 import {
   Fontisto,
   Entypo,
@@ -45,6 +46,7 @@ import {
   db_addTicketChat,
   db_getTicket,
   db_getTicketChat,
+  db_TICKET_CHAT
 } from "../commonApp/database";
 import TitleBar from "../components/TitleBar";
 import { getContactName } from "../commonApp/contacts";
@@ -61,6 +63,7 @@ import AttachmentPickerHost, {
 } from "../components/AttachmentPicker";
 import Loading from "../components/Loading";
 import MediaViewer from "../components/MediaViewer";
+import { onEvent, offEvent, EVENT_DB_CHANGE } from '../commonApp/DBEvents';
 
 const ChatDetails = ({ navigation, route }) => {
   const idTicket = route?.params?.idTicket || "";
@@ -91,13 +94,10 @@ const ChatDetails = ({ navigation, route }) => {
       msg.idUserTo = idUserTo;
       msg.TSSent = new Date();
 
-      await db_addTicketChat(msg);
-
-      msg.me = true;
-      msg.id = msg.TSSent + msg.idTicket;
-
       setMessageText("");
-      setChatData((prev) => [...prev, msg]);
+      
+      // mm - guardar en la base de datos, el evento EVENT_NEW_DOC lo agregará a la lista
+      await db_addTicketChat(msg);
     } catch (e) {
       console.log("handleSendMessage error", e);
       if (showAlertModal)
@@ -122,6 +122,7 @@ const ChatDetails = ({ navigation, route }) => {
   const [sections, setSections] = useState([]);
   const contentHeightRef = React.useRef(0);
   const textInputRef = React.useRef(null);
+  const idTicketRef = React.useRef(idTicket); // mm - ref para mantener el idTicket actual
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojis = [
     "😀",
@@ -174,15 +175,12 @@ const ChatDetails = ({ navigation, route }) => {
   const { options, setOptions, showAlertModal } = React.useContext(AppContext);
 
   let profile = getProfile();
+  
+ 
   useEffect(() => {
+    idTicketRef.current = idTicket;
+
     loadData();
-
-    return () => {
-      // Esto se ejecuta cuando el componente se va de pantalla
-    };
-  }, []);
-
-  useEffect(() => {
     const onShow = (e) => {
       const h = e.endCoordinates ? e.endCoordinates.height : 0;
       // animate layout shift a bit for smoother UI
@@ -207,15 +205,53 @@ const ChatDetails = ({ navigation, route }) => {
       } catch (e) {}
       setKeyboardHeight(0);
     };
+    
+    const off = onEvent(EVENT_DB_CHANGE, (doc) => {
+      try {
+        // mm - validar que el documento sea del tipo correcto y para este chat
+        console.log ("entro un cambio")
+        console.log (doc )
+        if (doc?.table !== db_TICKET_CHAT || doc?.data?.idTicket !== idTicketRef.current) {
+          return;
+        }
+
+        // mm - agregar el mensaje si no existe ya
+        setChatData((prev) => {
+          // Verificar si ya existe en el array actual por id
+          const exists = prev.some((item) => item.id === doc.data.id);
+          
+          if (exists) {
+            console.log(`Mensaje duplicado evitado: ${doc.data.id}`);
+            return prev;
+          }
+
+          // mm - marcar si el mensaje es del usuario actual
+          const newMessage = { ...doc.data, me: isMe(doc.data.idUserFrom) };
+          console.log(`Nuevo mensaje agregado: ${newMessage.id}`);
+
+
+          // mm - si el chat no lo envie yo lo guardo asi no espera a la sincro
+          if (!isMe(doc.data.idUserFrom)) saveMsg (doc)
+
+          // mm- lo hago aca para hacer el await
+          async function saveMsg (doc) {await db_addTicketChat (doc)} 
+
+          return [...prev, newMessage];
+        });
+      } catch (e) {
+        console.log("error onevent chat:", e);
+      }
+    });
 
     const subShow = Keyboard.addListener("keyboardDidShow", onShow);
     const subHide = Keyboard.addListener("keyboardDidHide", onHide);
 
     return () => {
+      if (off) off(); // mm - desuscribirse del evento
       subShow.remove();
       subHide.remove();
     };
-  }, []);
+  }, []); // mm - sin dependencias para que solo se suscriba UNA vez
 
   // recompute sections whenever chatData changes
   useEffect(() => {
@@ -290,11 +326,23 @@ const ChatDetails = ({ navigation, route }) => {
 
       let data = await db_getTicketChat(idTicket);
       data.map((item) => {
-        item.id = item.TSSent + item.idTicket;
         item.me = isMe(item.idUserFrom);
       });
+
+      // mm - ordeno descendentemente por TSSent (más reciente primero)
+      data = data.sort((a, b) => { 
+        const dateA = new Date(a.TSSent).getTime();
+        const dateB = new Date(b.TSSent).getTime();
+        return dateB - dateA;
+      });
+
+      // mm - elimino duplicados por id
+      const uniqueData = data.filter((item, index, self) => 
+        index === self.findIndex((t) => t.id === item.id)
+      );
+
       // set loaded chat data so UI can render
-      setChatData(data || []);
+      setChatData(uniqueData || []);
     } catch (e) {
       console.log("loadData " + JSON.stringify(e));
     }
@@ -330,11 +378,9 @@ const ChatDetails = ({ navigation, route }) => {
         uploadedFile.type ||
         (requested === "file" ? "application/pdf" : "image/jpeg");
 
+      // mm - guardar en la base de datos, el evento EVENT_NEW_DOC lo agregará a la lista
       await db_addTicketChat(msg);
-      msg.me = true;
-      msg.id = msg.filename; // mm - le doy un nombre unico a la clave
-
-      setChatData((prev) => [...prev, msg]);
+      
       setLoading(false);
     } catch (err) {
       console.log("handleFile error", err);
@@ -370,7 +416,7 @@ const ChatDetails = ({ navigation, route }) => {
         <SectionList
           ref={sectionListRef}
           sections={sections}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.id || `msg-${index}-${item.TSSent}`}
           showsVerticalScrollIndicator={false}
           // keep taps working on TextInput while keyboard is open
           keyboardShouldPersistTaps="handled"
@@ -588,7 +634,7 @@ const ChatItem = ({ chat, onOpen, showDate, dateLabel }) => {
             onPress={() => {
               onOpen &&
                 onOpen(
-                  URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + chat.filename,
+                  URL_FILE_DOWNLOAD + URL_FILE_NORMAL_PREFIX + chat.filename,
                   chat.mediaType
                 );
             }}
@@ -657,7 +703,7 @@ const ChatItem = ({ chat, onOpen, showDate, dateLabel }) => {
 
         <View style={[tStyles.row, tStyles.endx, { marginTop: 3 }]}>
           <Text style={[getStyles(mode).chatTime]}>
-            {moment(chat.TSSent).format("hh:mm a")}
+            {moment(chat.TSSent).format("HH:mm")}
           </Text>
         </View>
       </View>

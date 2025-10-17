@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
-  Platform,
-  StyleSheet,
-  TextInput,
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  useColorScheme,
-  Keyboard,
-  findNodeHandle,
-} from "react-native";
+  Platform, StyleSheet, TextInput, View, Text, Modal, TouchableOpacity,
+  useColorScheme, Keyboard, findNodeHandle} from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 import AppContext from "../context/appContext";
 import { tStyles, colors, fonts } from "../common/theme";

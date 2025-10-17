@@ -63,7 +63,12 @@ const TicketLog = ({ idTicket }) => {
   async function refreshData() {
     setLoading(true);
 
+    console.log (idTicket)
+    console.log ("ENTRO!!")
     let data = await db_getTicketLog(idTicket);
+    
+    console.log ("resultado data")
+    console.log (data)
     //let data = await db_getTicketLog(idTicket);
 
     if (data != []) {

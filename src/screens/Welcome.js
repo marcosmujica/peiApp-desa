@@ -56,6 +56,7 @@ const Welcome = ({ navigation }) => {
   {
     setLoading (true)
     let _profile = await initProfile()
+    console.log (_profile)
     try{
       recoveryAllContacts (_profile.phonePrefix)
     }catch (e){console.log ("error al leer los contactos en welcome: " + JSON.stringify(e))}

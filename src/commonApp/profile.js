@@ -6,7 +6,7 @@ import {USER_PREFIX_GROUP, MAIN_GROUP_BY_COLLECT, MAIN_GROUP_BY_PAY, MAIN_GROUP_
 let _profile = {}
 
 export function isMe(idUser)
-{ return idUser = _profile.idUser ? true : false }
+{ return idUser == _profile.idUser ? true : false }
 
 export async function initProfile ()
 {
@@ -30,6 +30,7 @@ export function isLogged ()
 
 export async function saveProfile()
 {
+    console.log ("voy a insertar saveprofile")
     return await db_saveProfile(_profile)
 }
 

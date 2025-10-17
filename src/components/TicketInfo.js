@@ -203,10 +203,10 @@ const TicketInfo = ({ idTicket }) => {
     try {
       setPayAttachmentFilename("");
       setPayAttachment({});
-
+      
       const res = await showAttachmentPicker();
       if (!res) {
-        setLoading(false);
+        console.log("No se seleccionó ninguna opción");
         return;
       }
 
@@ -219,9 +219,8 @@ const TicketInfo = ({ idTicket }) => {
       setPayAttachmentFilename(uploadedFile.fileName);
     } catch (e) {
       console.log("attachpayment: " + JSON.stringify(e));
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   function OnSelectedDueDate(date) {
@@ -264,11 +263,12 @@ const TicketInfo = ({ idTicket }) => {
       let amount = 0;
       let payList = [];
       payStatus.forEach((element, index) => {
+        console.log (element)
         payList.push({
           id: index,
           TSPay: element.data.TSPay,
           uri: element.data.uri,
-          idUser: element.idUser,
+          idUser: element.idUserFrom,
           currency: element.data.currency,
           dueDate: element.data.dueDate,
           amount: element.data.amount,
@@ -296,7 +296,6 @@ const TicketInfo = ({ idTicket }) => {
 
       // mm - proceso los valores particulares del usuario en el ticket
       let ticketInfo = await db_getTicketInfo(idTicket);
-
       if (ticketInfo.length>0) // mm - si tiene contenido
       {
         // mm - obtengo el registro de pago
@@ -306,11 +305,11 @@ const TicketInfo = ({ idTicket }) => {
 
         // mm - obtengo el registro de tipo de gasto
         aux = ticketInfo.find((item) => item.type == TICKET_INFO_TYPE_USE_TYPE && item.idUser == profile.idUser);
-        setUseType(aux.info.useType);
+        setUseType(aux ==undefined ? "" : aux.info.useType);
       }
     } catch (e) {
       showAlertModal("Error", "Existio un error al intentar recuperar el ticket. Por favor consulta más tarde.");
-      console.log("Error loaddata: " + JSON.stringify(e));
+      console.log("Error loaddata: " + JSON.stringify(e));console.log(e);
     }
     setLoading(false);
   }
@@ -360,13 +359,14 @@ const TicketInfo = ({ idTicket }) => {
   const bottomPadding = Math.max(20, insets.bottom || 0) + 16;
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        padding: 10,
-        paddingBottom: bottomPadding + 130,
-      }}
-      keyboardShouldPersistTaps="handled">
-      <Loading loading={isLoading} />
+    <>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 10,
+          paddingBottom: bottomPadding + 130,
+        }}
+        keyboardShouldPersistTaps="handled">
+        <Loading loading={isLoading} />
       {ticket.amount != ticket.initialAmount && (
         <View style={[getStyles(mode).row, { backgroundColor: "#DAF7A6", marginBottom: 20, borderRadius: 25 }]}>
           <Text style={{ padding: 10, color: colors.gray75 }}>
@@ -772,13 +772,16 @@ const TicketInfo = ({ idTicket }) => {
           </View>
         </View>
       )}
+      </ScrollView>
       <AttachmentPickerHost file={true} camera={true} gallery={true} />
-    </ScrollView>
+    </>
   );
 };
 
 const PayItem = ({ payItem, onOpen }) => {
   const mode = useColorScheme();
+  console.log ("PAGO")
+  console.log (payItem)
   return (
     <View
       style={{

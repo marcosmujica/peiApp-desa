@@ -29,6 +29,11 @@ import ImgAvatar from "../components/ImgAvatar";
 import { URL_AVATAR_IMG_UPLOAD } from "../commonApp/constants";
 import * as ImagePicker from "expo-image-picker";
 import Loading from "../components/Loading";
+import { getFileAndUpload, uploadFileToServer } from "../commonApp/attachFile";
+import AttachmentPickerHost, {
+  hideAttachmentPicker,
+  showAttachmentPicker,
+} from "../components/AttachmentPicker";
 
 const UserProfile = ({ navigation }) => {
   const mode = useColorScheme();
@@ -43,126 +48,21 @@ const UserProfile = ({ navigation }) => {
 
   let profile = {};
 
-  async function setPhoto() {
+  async function setPhoto(media="") {
     try {
       setLoading(true);
-      // Verificar permisos en mobile
-      if (Platform.OS !== "web") {
-        const permissionResult =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permissionResult.granted) {
-          showAlertModal(
-            "Atención",
-            "Se necesitan permisos para acceder a la galería"
-          );
-          return;
-        }
+      if (media == "") {
+        const res = await showAttachmentPicker();
+        if (!res) return;
+        media = res.type;
       }
+      let uploadedFile = await getFileAndUpload(idUser, true, media);
 
-      // Seleccionar imagen
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-        presentationStyle: Platform.OS === "ios" ? 0 : undefined, // optional, for iOS
-        // Permite elegir entre cámara y galería en mobile
-        // En iOS y Android, esto muestra ambas opciones si true
-        allowsMultipleSelection: false,
-        selectionLimit: 1,
-        // show camera option in picker (solo mobile)
-        // expo-image-picker no soporta directamente "camera" en el picker,
-        // así que hay que ofrecer ambas opciones manualmente
-      });
-
-      // Si el usuario quiere tomar una foto, hay que lanzar la cámara manualmente
-      if (
-        Platform.OS !== "web" &&
-        (result.canceled || !result.assets || result.assets.length === 0)
-      ) {
-        // Preguntar si quiere tomar una foto
-        // Puedes usar un modal o Alert aquí, pero para simplicidad:
-        // Lanzar la cámara directamente si no seleccionó nada
-        const cameraResult = await ImagePicker.launchCameraAsync({
-          mediaTypes: "images",
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 1,
-        });
-        if (!cameraResult.canceled && cameraResult.assets && cameraResult.assets.length > 0) {
-          result.assets = cameraResult.assets;
-          result.canceled = false;
-        }
-      }
-
-      console.log (result)
-      if (result === undefined || result.canceled) {
-        setLoading(false)
+      if (!uploadedFile) {
+        showAlertModal ("Error", "Ocurrió un error al procesar la imagen. Por favor intente nuevamente.")
         return;
       }
-
-      // Obtener el archivo seleccionado
-      const file = result.assets[0];
-      const formData = new FormData();
-
-      if (Platform.OS === "web") {
-        // En web, el resultado es un Blob
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
-        formData.append("image", blob, `${idUser}_${Date.now()}.jpg`);
-      } else {
-        // En mobile, necesitamos crear un objeto de archivo
-        const localUri =
-          Platform.OS === "ios" ? file.uri.replace("file://", "") : file.uri;
-        formData.append("image", {
-          uri: localUri,
-          type: "image/jpeg",
-          name: `${idUser}_${Date.now()}.jpg`,
-        });
-      }
-
-      // Agregar el ID de usuario
-      formData.append("idUser", idUser);
-
-      // Enviar al servidor
-      console.log('Enviando imagen a:', URL_AVATAR_IMG_UPLOAD);
-      try {
-        const response = await fetch(URL_AVATAR_IMG_UPLOAD, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-          body: formData,
-        });
-
-        const responseData = await response.json();
-
-        if (response.ok) {
-          // Actualizar el timestamp para forzar la recarga de la imagen
-          setAvatarKey(Date.now());
-          //showAlertModal(
-          //  "Éxito",
-          //  "La imagen se actualizó correctamente"
-          //);
-        } else {
-          showAlertModal(
-            "Error",
-            responseData.error || "La imagen no se pudo procesar, por favor intenta con otra y comprueba que tienes acceso a internet"
-          );
-        }
-      } catch (e) {
-        console.error('Error en la subida:', e);
-        showAlertModal(
-          "Error",
-          "Error de conexión. Por favor verifica tu conexión a internet."
-        );
-      }
-
-      
-
-      
     } catch (error) {
-      console.error("Error al procesar la imagen:", error);
       showAlertModal(
         "Error",
         "Ocurrió un error al procesar la imagen. Por favor intente nuevamente."
@@ -410,6 +310,7 @@ const UserProfile = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+        <AttachmentPickerHost file={false} camera={true} gallery={true} />
       </View>
     </SafeAreaView>
   );

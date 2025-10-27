@@ -22,7 +22,7 @@ import BadgeBtn from "../components/BadgeBtn";
 import DateBtn from "../components/DateBtn";
 import { TICKET, TICKET_LOG_DETAIL_STATUS } from "../commonApp/dataTypes";
 import moment from "moment";
-import { db_getTicketRating, db_getTicketLog, db_addTicketLogStatus, db_getTicket, db_updateTicket, db_updateTicketRating, db_getTicketLogByStatus, db_getTicketInfo, db_updateTicketInfo } from "../commonApp/database";
+import { db_getTicketRating, db_getTicketLog, db_addTicketLogStatus, db_getTicket, db_updateTicket, db_updateTicketRating, db_getTicketLogByStatus, db_getTicketInfo, db_updateTicketInfo, db_addTicketRating } from "../commonApp/database";
 import {
   TICKET_TYPE_COLLECT,
   TICKET_TYPE_PAY,
@@ -79,6 +79,7 @@ const TicketInfo = ({ idTicket }) => {
   const [payAttachmentFilename, setPayAttachmentFilename] = useState("");
   const behavior = Platform.OS === "ios" ? "height" : "padding";
   const [payMethod, setPayMethod] = useState(""); /// mm - por donde se paga
+  const [refreshTitle, setRefreshtitle] = useState(""); /// mm - por donde se paga
 
   function selectedPayMethod(item) {
     setPayMethod(item);
@@ -86,7 +87,7 @@ const TicketInfo = ({ idTicket }) => {
 
   async function setTicketRating(star) {
     setRating(star);
-    await db_updateTicketRating(idTicket, star);
+    await db_addTicketRating(idTicket, star);
   }
 
   function changeTicketStatus(code) {
@@ -131,6 +132,13 @@ const TicketInfo = ({ idTicket }) => {
       return;
     }
 
+    if (ticket.status == TICKET_DETAIL_PAY_STATUS && (ticketPay == "" || ticketPay == "0" )) {
+      showAlertModal("Atención", "Por favor ingresa el importe pagado, asegurate de que no exceda el total del ticket.", {
+        ok: true,
+      });
+      return;
+    }
+
     // mm - si no se ingresa monto o si el monto es mayor que el el total
     if (ticket.status == TICKET_DETAIL_PAY_STATUS && ticketPay == 0 && ticketPay + partialAmount <= ticket.amount) {
       showAlertModal("Atención", "Por favor ingresa el importe pagado, asegurate de que no exceda el total del ticket.", {
@@ -141,7 +149,7 @@ const TicketInfo = ({ idTicket }) => {
 
     if (ticket.status == TICKET_DETAIL_PAY_STATUS && payMethod == "") {
       // mm - nunca se seteo
-      showAlertModal("Atención", "Por favor selecciona cómo hiciste el pago", {
+      showAlertModal("Atención", "Por favor selecciona el método de pago", {
         ok: true,
       });
       return;
@@ -245,16 +253,18 @@ const TicketInfo = ({ idTicket }) => {
     try {
       setLoading(true);
 
+      setRefreshtitle ("Buscando info...")
       let ticketAux = await db_getTicket(idTicket);
       setTicket(ticketAux);
       setRating(await db_getTicketRating(idTicket));
-
+      
       // mm - me fijo si soy el dueno muestro el del otro, sino muestro quien lo creo
       setContactId(ticketAux.idUserCreatedBy == profile.idUser ? ticketAux.idUserTo : ticketAux.idUserFrom);
       // Guardar solo el nombre para evitar renderizar objetos completos
       const contactObj = getContactName(ticketAux.idUserCreatedBy == profile.idUser ? ticketAux.idUserTo : ticketAux.idUserFrom);
       setContactName(contactObj && contactObj.name ? contactObj.name : "");
       // mm - lo guardo en una variable porque no le da el tiempo de guardarla y luego consultarla
+      setRefreshtitle ("Buscando cambios...")
       let dateAux = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, "TS", "desc");
       let TSDueDateAux = dateAux.length == 0 ? new Date() : dateAux[0].data.dueDate
 
@@ -295,6 +305,8 @@ const TicketInfo = ({ idTicket }) => {
       }
 
       // mm - proceso los valores particulares del usuario en el ticket
+      
+      setRefreshtitle ("Buscando info particular...")
       let ticketInfo = await db_getTicketInfo(idTicket);
       if (ticketInfo.length>0) // mm - si tiene contenido
       {
@@ -360,13 +372,13 @@ const TicketInfo = ({ idTicket }) => {
 
   return (
     <>
+          <Loading loading={isLoading} title={refreshTitle}/>
       <ScrollView
         contentContainerStyle={{
           padding: 10,
           paddingBottom: bottomPadding + 130,
         }}
         keyboardShouldPersistTaps="handled">
-        <Loading loading={isLoading} />
       {ticket.amount != ticket.initialAmount && (
         <View style={[getStyles(mode).row, { backgroundColor: "#DAF7A6", marginBottom: 20, borderRadius: 25 }]}>
           <Text style={{ padding: 10, color: colors.gray75 }}>
@@ -408,21 +420,10 @@ const TicketInfo = ({ idTicket }) => {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          marginVertical: 10,
+          marginVertical: 0,
           justifyContent: "space-between",
         }}>
-        <ImgAvatar size="30" id={contactId} />
-        <Text style={getStyles(mode).screenSubTitle}>{ellipString(contactName, 20)}</Text>
-        <View style={{ justifyContent: "flex-end", flexDirection: "row", flex: 1 }}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <TouchableOpacity key={star} onPress={() => setTicketRating(star)} activeOpacity={0.7}>
-              <Ionicons name={rating >= star ? "star" : "star-outline"} size={20} color={rating >= star ? colors.darkPrimary2 : colors.darkPrimary} style={{ marginHorizontal: 2 }} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      <View>
-        {diasEntreFechas(initialDueDate) < 0 && ticket.isOpen && (
+          {diasEntreFechas(initialDueDate) < 0 && ticket.isOpen && (
           <Text
             style={{
               padding: 5,
@@ -444,9 +445,20 @@ const TicketInfo = ({ idTicket }) => {
             {dueDateText}
           </Text>
         )}
+        <View style={{ justifyContent: "flex-end", flexDirection: "row", flex: 1 }}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <TouchableOpacity key={star} onPress={() => setTicketRating(star)} activeOpacity={0.7}>
+              <Ionicons name={rating >= star ? "star" : "star-outline"} size={20} color={rating >= star ? colors.darkPrimary2 : colors.darkPrimary} style={{ marginHorizontal: 2 }} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      <View>
+        <View style={{padding:0}}>
+      
         {partialAmount < ticket.amount && (
           <View style={{ padding: 5 }}>
-            <Text style={getStyles(mode).sectionTitle}></Text>
+            
             <Text style={{ color: colors.gray50 }}>
               <Text
                 style={{
@@ -462,10 +474,11 @@ const TicketInfo = ({ idTicket }) => {
           </View>
         )}
       </View>
+      </View>
       <View style={getStyles(mode).row}>
         {!isShowInfo && (<View style={{ justifyContent: "flex-start", flex: 1 }}>
           <TouchableOpacity onPress={() => {setIsPayDetail(false); setIsShowInfo(true)}}>
-            <Text style={[getStyles(mode).sectionTitle, { padding: 20 }]}>
+            <Text style={[getStyles(mode).sectionTitle, { padding: 0 }]}>
               <Fontisto name="angle-dobule-down" /> Información
             </Text>
           </TouchableOpacity>
@@ -514,6 +527,9 @@ const TicketInfo = ({ idTicket }) => {
             }}>
             <Text style={[getStyles(mode).normalText, { padding: 5 }]}>
               Total pagos: {ticket.currency} {formatNumber(payList.reduce((sum, item) => sum + item.amount, 0))}
+            </Text>
+            <Text style={[getStyles(mode).normalText, { padding: 5 }]}>
+              Diferencia: {ticket.currency} {formatNumber(payList.reduce((sum, item) => sum + item.amount, 0) - ticket.amount)}
             </Text>
           </View>
         </View>
@@ -791,7 +807,7 @@ const PayItem = ({ payItem, onOpen }) => {
         margin: 10,
         justifyContent: "space-between",
       }}>
-      <ImgAvatar id={payItem.idUser} size={25} />
+      <ImgAvatar id={payItem.idUser} size={25} detail={false}/>
       <Text style={[getStyles(mode).chatText, { fontWeight: "bold", color: colors.primary, marginLeft: 8, flex: 1 }]}>
         {moment(payItem.TSPay).format("D MMM, HH:mm")} - {payItem.currency} {formatNumber(payItem.amount)}
       </Text>

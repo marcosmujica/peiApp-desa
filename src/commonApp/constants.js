@@ -83,12 +83,14 @@ export const TICKET_DETAIL_STATUS = [
   { code: TICKET_DETAIL_CANCELED_STATUS, name:"Cancelado", system: false, user: false, admin: true, editable: false},
   { code: TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, name:"Cambia Vencimiento", system: false, user: true, admin: true, editable: true},
   { code: TICKET_DETAIL_DISPUTE_STATUS, name:"En disputa", system: false, user: true, admin: true, editable: true},
+  { code: TICKET_DETAIL_CLOSED_STATUS, name:"Cerrado", system: false, user: true, admin: true, editable: false},
 
 ].sort ((a,b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1);
 
-export const USER_PREFIX_USER = "u:"
-export const USER_PREFIX_PHONE = "p:"
-export const USER_PREFIX_GROUP = "g:"
+export const USER_PREFIX_USER = "u-"
+export const USER_PREFIX_PHONE = "p-"
+export const USER_PREFIX_GROUP = "g-"
+export const USER_PREFIX_GROUP_BY = "gb-"
 
 export const USER_TYPE_USER = "USER"
 export const USER_TYPE_PHONE = "PHONE"

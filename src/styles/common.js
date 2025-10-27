@@ -50,6 +50,9 @@ const lightStyles = StyleSheet.create({
         paddingBottom: 15,
         paddingTop: 55,
         backgroundColor: colors.white,
+        overflow: 'visible',
+        zIndex: 1,
+        minHeight: 85
     },
     topBarMainText: {
         ...fonts.medium,
@@ -62,7 +65,8 @@ const lightStyles = StyleSheet.create({
         borderRadius: 60,
         position: 'absolute',
         top: 80,
-        zIndex: 2
+        zIndex: 2,
+        overflow: 'hidden'
     },
     slideOptionsContainer: {
         position: 'absolute',

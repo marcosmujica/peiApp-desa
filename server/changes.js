@@ -1,7 +1,7 @@
 import express from "express";
 import { WebSocketServer } from "ws";
 
-const COUCH_URL = "http://34.39.168.70:5984"; // ajustá usuario/clave
+const COUCH_URL = "http://localhost:5984"; // ajustá usuario/clave
 const DBS = ["ticket_chat", "ticket", "ticket_log_status"]; // bases que querés escuchar
 
 // Extraer credenciales (si están embebidas) y construir COUCH_BASE y Authorization header
@@ -43,7 +43,7 @@ async function watchDB(dbName) {
 
   while (true) {
     try {
-      const url = `${COUCH_BASE}/${dbName}/_changes?feed=continuous&include_docs=true&since=${since}`;
+      const url = `${COUCH_BASE}/${dbName}/_changes?feed=continuous&include_docs=true&heartbeat=5000&since=${since || "now"}`;
       console.log(`→ Conectando a changes: ${url} (since=${since})`);
       const fetchOptions = {};
       if (AUTH_HEADER) {
@@ -69,7 +69,7 @@ async function watchDB(dbName) {
 
         const chunkText = decoder.decode(value, { stream: true });
         buffer += chunkText;
-        console.log(`📥 Chunk recibido (${chunkText.length} bytes). Buffer length: ${buffer.length}`);
+        //console.log(`📥 Chunk recibido (${chunkText.length} bytes). Buffer length: ${buffer.length}`);
 
         const lines = buffer.split("\n");
         buffer = lines.pop(); // guarda lo que no está completo
@@ -87,6 +87,7 @@ async function watchDB(dbName) {
             for (const client of clients) {
               if (client.readyState === 1) {
                 try {
+		  console.log (payload);
                   client.send(JSON.stringify(payload));
                   sent++;
                 } catch (e) {

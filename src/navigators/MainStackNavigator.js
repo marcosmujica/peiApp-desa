@@ -11,12 +11,15 @@ export const MainStackNavigator = () => {
             <Stack.Screen name="PreLogin" component={ Screens.PreLogin } />
             <Stack.Screen name="Login" component={ Screens.Login } />
             <Stack.Screen name="UserGroupInfo" component={ Screens.UserGroupInfo } />
+            <Stack.Screen name="UserInfo" component={ Screens.UserInfo } />
+            <Stack.Screen name="HomeGroups" component={ Screens.HomeGroups } />
+            <Stack.Screen name="GroupList" component={ Screens.GroupList } />
             <Stack.Screen name="OTPScreen" component={ Screens.OTPScreen } />
             <Stack.Screen name="Profile_Info" component={ Screens.Profile_Info } />
             <Stack.Screen name="TicketResume" component={ Screens.TicketResume } />
             <Stack.Screen name="TicketDetail" component={ Screens.TicketDetail } />
             <Stack.Screen name="UserProfile" component={ Screens.UserProfile } />
-            <Stack.Screen name="GroupEdit" component={ Screens.GroupEdit } />
+            <Stack.Screen name="MemberList" component={ Screens.MemberList } />
             <Stack.Screen name="NewTicket" component={ Screens.NewTicket } />
             <Stack.Screen name="Viewer" component={ Screens.Viewer} />
             <Stack.Screen name="Profile_AreaToWork" component={ Screens.Profile_AreaToWork } />
@@ -33,7 +36,6 @@ export const MainStackNavigator = () => {
             <Stack.Screen name="AccountSettings" component={ Screens.AccountSettings } />
             <Stack.Screen name="PrivacySettings" component={ Screens.PrivacySettings } />
             <Stack.Screen name="HelpCenter" component={ Screens.HelpCenter } />
-            <Stack.Screen name="MyProfile" component={ Screens.MyProfile } />
             <Stack.Screen name="ViewStory" component={ Screens.ViewStory } />
             <Stack.Screen name="AppInfo" component={ Screens.AppInfo } />
             <Stack.Screen name="Information" component={ Screens.Information } />

@@ -29,7 +29,7 @@ import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
 
-const Home = ({ navigation }) => {
+const HomeGroups = ({ navigation }) => {
   const FILTER_TICKETS = "TICKETS";
   const FILTER_GROUPS = "GROUPS";
   const FILTER_WAY = "PAY";
@@ -159,8 +159,6 @@ const Home = ({ navigation }) => {
         let item = new TICKET_LIST_ITEM();
         let data = doc.data;
         item.idTicket = doc._id;
-        item.idGroup = item.idTicketGroup
-        item.idGroupBy = item.idTicketGroupBy
         item.idUserTo = data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom;
         item.idUserCreatedBy = data.idUserCreatedBy
         item.currency = doc.data.currency;
@@ -263,35 +261,28 @@ const Home = ({ navigation }) => {
       processEvent(doc);
     });
 
-    // mm - al hacer el focus recargo los datos
+    // mm - al hacer el focus elimino todas las otras ventanas
     const onFocus = () => {
       checkDB();
-      // mm - comentado porque causa bucle infinito
-      // La lógica de limpiar el stack de navegación puede causar problemas
-      // Si realmente necesitas limpiar el stack, considera hacerlo desde 
-      // donde navegas hacia Home, no en el evento focus
-      /*
+
       try {
-        const state = navigation.getState();
-        
-        if (!state || !state.routes || !Array.isArray(state.routes) || state.routes.length === 0) {
-          return;
-        }
-        
-        const currentRoute = state.routes[state.index];
-        
-        if (!currentRoute || state.routes.length === 1) {
-          return;
-        }
-        
-        navigation.reset({
-          index: 0,
-          routes: [{ name: currentRoute.name, params: currentRoute.params }],
+        navigation.reset((state) => {
+          // Validar que state y sus propiedades existen
+          if (!state || !state.routes || !Array.isArray(state.routes) || state.routes.length === 0) {
+            return state;
+          }
+          
+          const active = state.routes[state.index];
+          if (!active || state.routes.length === 1) return state;
+          
+          return {
+            index: 0,
+            routes: [{ name: active.name, params: active.params }],
+          };
         });
       } catch (e) {
         console.warn("Error pruning navigation state on focus", e);
       }
-      */
     };
 
     const unsubscribe = navigation.addListener("focus", onFocus);
@@ -439,8 +430,8 @@ const Home = ({ navigation }) => {
       {/* SlideOptions debe estar fuera del contenedor con padding para posicionamiento absoluto */}
       {options && <SlideOptions links={links} setOptions={setOptions} />}
 
-      <TouchableOpacity onPress={() => navigation.navigate("MemberList", )} style={getStyles(colorScheme).floatingBtn}>
-        <MaterialCommunityIcons name="message-plus" size={20} />
+      <TouchableOpacity onPress={() => navigation.navigate("GroupList", )} style={getStyles(colorScheme).floatingBtn}>
+        <MaterialCommunityIcons name="account-group" size={20} />
       </TouchableOpacity>
       {/* Add a button to open SlideOptions */}
     </View>
@@ -475,7 +466,7 @@ const TicketItem = ({ item, idUser, onClick }) => {
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             {item.way == TICKET_TYPE_PAY && (
-              <Text style={[getStyles(colorScheme).chatTime, { color: colors.cancel }]}>
+              <Text style={[getStyles(colorScheme).chatTime, { color: "#c53131ff" }]}>
                 - {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15} />}
               </Text>
             )}
@@ -556,4 +547,4 @@ const ChatFilter = () => {
   );
 };
 
-export default Home;
+export default HomeGroups;

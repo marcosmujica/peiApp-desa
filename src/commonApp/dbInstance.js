@@ -1,5 +1,3 @@
-import { emitEvent } from "./DBEvents";
-
 // dbInstance.js - Singleton para mantener una única instancia de la base de datos
 class DatabaseInstance {
     constructor() {

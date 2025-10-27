@@ -89,7 +89,7 @@ app.post("/upload", upload.any(), async (req, res) => {
     if (!incomingFile) {
       if (req.body && req.body.fileBase64) {
         try {
-          const { idUser: bodyIdUser, fileName: bodyFileName, fileType: bodyFileType } = req.body;
+          const { idUser: bodyIdUser, fileName: bodyFileName, fileType: bodyFileType, isAvatar: bodyIsAvatar } = req.body;
           const b64 = req.body.fileBase64;
           const fileName = bodyFileName || `${bodyIdUser || 'unknown'}_${uuidv4()}`;
           const fileType = bodyFileType || 'application/octet-stream';
@@ -137,13 +137,14 @@ app.post("/upload", upload.any(), async (req, res) => {
       }
     }
 
-    const { idUser } = req.body;
+    const { idUser, isAvatar } = req.body;
     if (!idUser) {
       console.log("idUser es requerido");
       return res.status(400).json({ error: "idUser es requerido" });
     }
 
-    const { isAvatar } = req.body;
+	  console.log (idUser);
+	  console.log (isAvatar);
     if (typeof isAvatar === 'undefined') {
       console.log("isAvatar no encontrado");
       return res.status(400).json({ error: "isAvatar no encontrado" });
@@ -168,7 +169,7 @@ app.post("/upload", upload.any(), async (req, res) => {
         filename = `${idUser}_${uuidv4()}.jpg`;
         await processAndSaveImage(incomingFile.buffer, filename, 'small', 200);
       }
-      await processAndSaveImage(incomingFile.buffer, filename, 'normal', 1080);
+      await processAndSaveImage(incomingFile.buffer, filename, 'normal', 800);
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.json({ status: true, filename, message: 'Imágenes procesadas exitosamente' });
     }

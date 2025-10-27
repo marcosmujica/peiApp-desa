@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  Platform, StyleSheet, TextInput, View, Text, Modal, TouchableOpacity,
+  Platform, Switch,StyleSheet, TextInput, View, Text, Modal, TouchableOpacity,
   useColorScheme, Keyboard, findNodeHandle} from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 import AppContext from "../context/appContext";
@@ -42,11 +42,14 @@ const TicketEdit = ({ idTicket }) => {
   const [ticketRef, setTicketRef] = React.useState("");
   const [currencyName, setCurrencyName] = React.useState("");
   const [payMethodInfo, setPayMethodInfo] = React.useState("");
+  const [isCollectionProcedure, setIsCollectionProcedure] = React.useState("");
 
   const [showConfirmButton, setShowConfirmButton] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = React.useRef(null);
   const payInputRef = React.useRef(null);
+
+  const toggleCollectionProcedure = () => setIsCollectionProcedure((previousState) => !previousState);
 
   let profile = getProfile();
 
@@ -85,6 +88,7 @@ const TicketEdit = ({ idTicket }) => {
     setPayMethodInfo(ticketAux.paymentInfo.paymentMethod);
     setTicketAmount(ticketAux.amount);
     setTicketRef(ticketAux.metadata.externalReference);
+    setIsCollectionProcedure (ticketAux.collectionProcedure)
     setCurrencyName(
       currencyList.find((a) => a.currency_code == ticketAux.currency).name
     );
@@ -149,8 +153,12 @@ const TicketEdit = ({ idTicket }) => {
     if (ticket.amount != ticketAmount){edit = true; aux.amount = ticketAmount;await addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_AMOUNT, "Se cambio el importe. Antes era " + ticket.currency + " "+ formatNumber(ticket.amount) + " y ahora es " + ticket.currency + " " +  formatNumber(ticketAmount), {amount: Number(ticketAmount)})}
     if (ticket.metadata.externalReference != ticketRef ){edit = true; aux.metadata.externalReference = ticketRef}
     if (ticket.paymentInfo.paymentMethod != payMethodInfo ){edit = true; aux.paymentInfo.paymentMethod = payMethodInfo; addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_PAY_INFO , "Se cambio la información de pago a " + payMethodInfo, {payMethodInfo : payMethodInfo})}
+    if (ticket.paymentInfo.paymentMethod != payMethodInfo ){edit = true; aux.paymentInfo.paymentMethod = payMethodInfo; addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_PAY_INFO , "Se cambio la información de pago a " + payMethodInfo, {payMethodInfo : payMethodInfo})}
+    if (ticket.collectionProcedure != isCollectionProcedure ){edit = true; aux.collectionProcedure = isCollectionProcedure;}
 
-    if(edit) {await db_updateTicket (idTicket, aux)}
+    if(edit) {
+      console.log ("GRABAR")
+      await db_updateTicket (idTicket, aux)}
     setLoading(false);
     navigation.goBack();
   }
@@ -248,6 +256,15 @@ const TicketEdit = ({ idTicket }) => {
               />
             </View>
             
+          </View>
+          <View style={{paddingBottom:20}}>
+            <View style={[styles.row, ]}>
+              <Text style={getStyles(mode).sectionTitle}>Ayúdame con este ticket</Text>
+              <Switch value={isCollectionProcedure} onValueChange={toggleCollectionProcedure} trackColor={{ false: "#767577", true: "#b3b3b3ff" }} thumbColor={isCollectionProcedure ? "#aafdc2ff" : "#f4f3f4"} />
+              </View>
+              <View style={[styles.row, {padding:0, paddingHorizontal:10}]}>
+                <Text style={getStyles(mode).subNormalText}>Usar un procedimiento para recordar el pago o cobro de este ticket</Text>
+              </View>
           </View>
           <View style={{ padding: 10 }}>
             <Text style={getStyles(mode).sectionTitle}>

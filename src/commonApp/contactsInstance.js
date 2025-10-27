@@ -1,3 +1,5 @@
+import {getProfile, isMe} from "./profile"
+
 // contactsInstance.js
 class ContactsManager {
     constructor() {
@@ -37,14 +39,15 @@ class ContactsManager {
         return this._contacts.find(contact => contact.phone === id);
     }
 
-    // Obtener nombre de contacto por ID
+    //mm - Obtener nombre de contacto por ID, si es mi id pongo mi nombre
     getContactName(id) {
         try{
             if (id=="" || id==null || id==undefined) return ("")
             const contact = this.getContactById(id);
-            return contact ? contact.name : "~" + id;
+            let profile = getProfile()
+            return contact ? contact.name : isMe (id) ? profile.name : "~" + id;
         }
-        catch (e) { console.log ("error getcontactname: " + JSON.stringify(e))}
+        catch (e) { console.log ("error getcontactname ");console.log (e)}
     }
 
     // Limpiar los contactos

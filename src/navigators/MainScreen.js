@@ -64,7 +64,7 @@ const MainScreen = ({ navigation }) => {
       screenOptions={{ headerStyle: getStyles(mode).headerNav }}
     >
       <Tab.Screen
-        name="Chats"
+        name="Tickets"
         component={Screens.Home}
         options={{
           title: "peiApp",
@@ -83,61 +83,81 @@ const MainScreen = ({ navigation }) => {
         }}
       />
       <Tab.Screen
-        name="Updates"
-        component={Screens.Updates}
+        name="Grupos"
+        component={Screens.HomeGroups}
         options={{
+          title: "peiApp",
           tabBarIcon: () => (
             <MaterialIcons
-              name="bubble-chart"
+              name="groups"
               size={20}
               color={mode == "dark" ? colors.gray30 : null}
             />
-          ),
+          ),  
           tabBarSelectedIcon: () => (
             <MaterialIcons
-              name="bubble-chart"
+              name="groups"
               size={20}
               color={colors.primary}
             />
           ),
           headerTitle: (props) => <CustomHeader {...props} />,
+           tabBarBadge: 10,
         }}
       />
       <Tab.Screen
-        name="Calls"
+        name="Contactos"
         component={Screens.Calls}
         options={{
           tabBarIcon: () => (
             <Ionicons
-              name="call-sharp"
+              name="person"
               size={20}
               color={mode == "dark" ? colors.gray30 : null}
             />
           ),
           tabBarSelectedIcon: () => (
-            <Ionicons name="call-sharp" size={20} color={colors.primary} />
+            <Ionicons name="person" size={20} color={colors.primary} />
           ),
           headerTitle: (props) => <CustomHeader {...props} />,
         }}
       />
 
       <Tab.Screen
-        name="Settings1"
+        name="Repetir"
         component={Screens.Settings}
         options={{
           tabBarIcon: () => (
             <FontAwesome5
-              name="cog"
+              name="repeat"
               size={20}
               color={mode == "dark" ? colors.gray30 : null}
             />
           ),
           tabBarSelectedIcon: () => (
-            <FontAwesome5 name="cog" size={20} color={colors.primary} />
+            <FontAwesome5 name="repeat" size={20} color={colors.primary} />
           ),
           headerTitle: (props) => <CustomHeader {...props} />,
         }}
       />
+      <Tab.Screen
+        name="Info"
+        component={Screens.Settings}
+        options={{
+          tabBarIcon: () => (
+            <FontAwesome5
+              name="info"
+              size={20}
+              color={mode == "dark" ? colors.gray30 : null}
+            />
+          ),
+          tabBarSelectedIcon: () => (
+            <FontAwesome5 name="info" size={20} color={colors.primary} />
+          ),
+          headerTitle: (props) => <CustomHeader {...props} />,
+        }}
+      />
+     
     </Tab.Navigator>
   );
 };

@@ -1,10 +1,13 @@
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from "react-native";
 import { Image } from "expo-image";
 import { URL_AVATAR_IMG, URL_FILE_AVATAR_PREFIX } from "../commonApp/constants"
+import { useNavigation } from "@react-navigation/native";
 
-export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 }) {
+export default function ImgAvatar({id = "", name = "", cache = true, size = 50, detail = true }) {
   if (id =="") return
-  
+
+  const navigation = useNavigation();
+
   const numericSize = Number(size) || 50;
 
   const hasRemoteImage = true;
@@ -24,6 +27,13 @@ export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 
         .slice(0, 2)
     : "";
 
+  function showDetail()
+  {
+    if (detail && navigation) {
+      navigation.navigate ("UserInfo", {idUser:id})
+    }
+  }
+
   return (
     <View
       style={[
@@ -31,6 +41,7 @@ export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 
         { width: numericSize, height: numericSize, borderRadius: numericSize / 2 },
       ]}
     >
+      <TouchableOpacity onPress={showDetail} disabled={!detail} >
       {hasRemoteImage ? (
         <Image
           source={{ uri: imageUrl }}
@@ -49,6 +60,7 @@ export default function ImgAvatar({ id = "", name = "", cache = true, size = 50 
           transition={300}
         />
       )}
+      </TouchableOpacity>
     </View>
   );
 }

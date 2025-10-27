@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import {
   View,
   Text,
@@ -18,9 +18,9 @@ import { useNavigation } from "@react-navigation/native";
 import { getStyles } from "../styles/home";
 import {
   _contacts,
+  db_addGroupByTicket,
   db_updateGroupUsers,
-  db_addGroupUsers,
-  db_getUserIdByPhone,
+  db_addGroupUsers
 } from "../commonApp/database";
 import ImgAvatar from "../components/ImgAvatar";
 import "../commonApp/global";
@@ -28,30 +28,33 @@ import { _maxContactPerGroup, _profile } from "../commonApp/global";
 import AppContext from "../context/appContext";
 import {
   USER_PREFIX_GROUP,
+  USER_PREFIX_GROUP_BY,
   USER_PREFIX_PHONE,
   USER_PREFIX_USER,
 } from "../commonApp/constants";
-import { GROUP_TICKETS } from "../commonApp/dataTypes";
+import { GROUP_TICKETS, GROUP_BY_TICKETS } from "../commonApp/dataTypes";
 import { getProfile } from "../commonApp/profile";
 import TitleBar from "../components/TitleBar";
 import Loading from "../components/Loading";
 import { v4 as uuidv4 } from "uuid";
+import { getContactName } from "../commonApp/contacts";
 
 const UserGroupInfo = ({ navigation, route }) => {
   const [usersListGroup, setUserListGroup] = React.useState(
-    route.params["groupUsers"]
+    route.params["groupUsers"] || []
   );
 
-  const [groupName, setGroupName] = React.useState(route.params["groupName"]);
-  const [isAddGroup] = React.useState(route.params["isAddGroup"]);
-  const [isUpdateGroup] = React.useState(route.params["isUpdateGroup"]);
-  const [idTicketGroup] = React.useState(route.params["idTicketGroup"]);
+  const [groupName, setGroupName] = React.useState(route.params["groupName"] || "");
+  const [groupByName, setGroupByName] = React.useState(route.params["groupByName"] || "");
+  const [isAddGroup] = React.useState(route.params["isAddGroup"] || "");
+  const [isUpdateGroup] = React.useState(route.params["isUpdateGroup"] ||  "");
+  const [idTicketGroup] = React.useState(route.params["idTicketGroup"] ||  "");
   const [isSendMsgToGroup, setisSendMsgToGroup] = useState(false);
   const [isViewTicketList, setisViewTicketList] = useState(false);
   const [isUserAddTicket, setisUserAddTicket] = useState(false);
   const [isViewMember, setisViewMember] = useState(false);
-
   const [loading, setLoading] = React.useState("");
+  const [selectedContacts, setSelectedContacts] = React.useState ([])
 
   const toggleSendMsgToGroup = () =>
     setisSendMsgToGroup((previousState) => !previousState);
@@ -63,6 +66,19 @@ const UserGroupInfo = ({ navigation, route }) => {
     setisViewMember((previousState) => !previousState);
 
   useEffect(() => {
+
+    let aux = []
+
+    let profile = getProfile()
+    
+    for (let i=0;i<usersListGroup.length;i++)
+    {
+      if (usersListGroup[i] != profile.idUser)
+      aux.push ({id:usersListGroup[i], name: getContactName (usersListGroup[i])})
+    };
+
+    setSelectedContacts (aux)
+    console.log (aux)
     return () => {
       console.log("🧹 Componente desmontado");
       // Esto se ejecuta cuando el componente se va de pantalla
@@ -70,7 +86,6 @@ const UserGroupInfo = ({ navigation, route }) => {
   }, []); //
 
   const mode = useColorScheme();
-  const [selectedContacts, setSelectedContacts] = useState([]);
   const { showAlertModal } = React.useContext(AppContext);
 
   let lastSearchText = ""; // mm - ultimo texto que se esta buscando
@@ -81,9 +96,16 @@ const UserGroupInfo = ({ navigation, route }) => {
       showAlertModal("Atención", "Por favor ingresa el nombre del grupo");
       return;
     }
+    if (groupByName == "") {
+      showAlertModal("Atención", "Por favor ingresa el nombre del sub grupo");
+      return;
+    }
 
     setLoading(true);
     // mm - creo el grupo
+
+    let idGroup = USER_PREFIX_GROUP + uuidv4()
+    let idGroupBy = USER_PREFIX_GROUP_BY + uuidv4()
 
     let ticketGroup = new GROUP_TICKETS();
 
@@ -99,12 +121,19 @@ const UserGroupInfo = ({ navigation, route }) => {
     ticketGroup.isViewTicketList = isViewTicketList;
     ticketGroup.groupUsers = usersListGroup;
 
+    let ticketGroupBy = new GROUP_BY_TICKETS();
+    ticketGroupBy.TSCreated = profile.idUser
+    ticketGroupBy.groupUsers = usersListGroup
+    ticketGroupBy.idTicketGroup = idGroup
+    ticketGroupBy.idUserCreatedBy = profile.idUser;
+    ticketGroupBy.idUserOwner = profile.idUser;
+    ticketGroupBy.name = groupByName
+
     let result;
     if (isAddGroup) {
-      console.log("entro");
-
-      result = await db_addGroupUsers( uuidv4(), ticketGroup );
-      result ? navigation.navigate("NewTicket", { idTicketGroup: result}) : showAlertModal( "Error", "Error al crear el grupo, por favor verifica" );
+      result = await db_addGroupUsers( idGroup, ticketGroup );
+      result = await db_addGroupByTicket( idGroupBy, ticketGroupBy );
+      result ? navigation.navigate("NewTicket", { idTicketGroup: idGroup, idTicketGroupBy: idGroupBy, usersList: selectedContacts.map ((item)=> item.id)}) : showAlertModal( "Error", "Error al crear el grupo, por favor verifica" );
     }
 
     if (isUpdateGroup) {
@@ -124,36 +153,14 @@ const UserGroupInfo = ({ navigation, route }) => {
     showAlertModal(title, msg);
   };
 
-  const addContactToList = (contact) => {
-    // mm - si no hay contactos seleccionados y no se agreo un nombre al grupo
-    if (selectedContacts.length == 0 && groupName.length == 0) {
-      setGroupName(contact.name);
-    }
-
-    // mm - solo agrego la cantidad maxima de contactos
-    if (selectedContacts.length < _maxContactPerGroup) {
-      /// mm - si aun no esta en la lista para no agregarlo duplicado que da error
-      selectedContacts.findIndex((item) => item.id == contact.id) == -1
-        ? setSelectedContacts((prevItems) => [...prevItems, contact])
-        : false;
-    }
-  };
-
-  const removeContactFromList = (contact) => {
-    /// mm - si aun no esta en la lista para no agregarlo duplicado que da error
-    setSelectedContacts((prevItems) =>
-      prevItems.filter((item) => item.id !== contact.id)
-    );
-    selectedContacts.length == 1 ? setGroupName("") : false; // mm - si saco el ultimo contacto seleccionado borro el nombre del grupo
-  };
-
+  
   return (
     <SafeAreaView style={getStyles(mode).container}>
       <Loading loading={loading} title="Procesando..." />
       <TitleBar title="Información" subtitle="" goBack={true} />
       <View>
-        <View style={{ padding: 20 }}>
-          <Text style={getStyles(colorScheme).sectionTitle}>Nombre</Text>
+        <View style={{ padding: 20, paddingBottom:0 }}>
+          <Text style={getStyles(colorScheme).sectionTitle}>Nombre del Grupo</Text>
           <View style={getStyles(mode).searchBar}>
             <TextInput
               placeholder="nombre del grupo..."
@@ -161,6 +168,18 @@ const UserGroupInfo = ({ navigation, route }) => {
               style={getStyles(mode).searchBarInput}
               value={groupName}
               onChangeText={setGroupName}
+            />
+          </View>
+          </View>
+          <View style={{ padding: 20 }}>
+          <Text style={getStyles(colorScheme).sectionTitle}>Nombre del Sub Grupo</Text>
+          <View style={getStyles(mode).searchBar}>
+            <TextInput
+              placeholder="nombre del sub grupo..."
+              placeholderTextColor={colors.secondary}
+              style={getStyles(mode).searchBarInput}
+              value={groupByName}
+              onChangeText={setGroupByName}
             />
           </View>
 
@@ -198,7 +217,16 @@ const UserGroupInfo = ({ navigation, route }) => {
           </View>
         </View>
       </View>
-      <View style={{ paddingHorizontal: 15, marginBottom: 15 }}>
+          <View style={[ {paddingLeft:20, paddingTop:10, paddingBottom:0, }]}>
+          <Text style={getStyles(mode).subNormalText}>Miembros: {selectedContacts.length}</Text>
+       <View style={[getStyles(mode).topBarHolder, { paddingLeft:10, borderBottomWidth: 0 }]}>
+          <FlatList horizontal={true} showsHorizontalScrollIndicator={false}  data={selectedContacts} keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (<SelectedItem item={item}/>)}
+            contentContainerStyle={{ paddingHorizontal: 15 }}
+            />
+        </View>
+            </View>
+      <View style={{ paddingHorizontal: 15, marginTop:20, marginBottom: 15 }}>
         <TouchableOpacity
           style={styles.agreeBtn}
           onPress={() => checkInfoAndSave()}
@@ -210,6 +238,25 @@ const UserGroupInfo = ({ navigation, route }) => {
       </View>
       {/* COntinue Button */}
     </SafeAreaView>
+  );
+};
+
+const SelectedItem = ({item }) => {
+  const mode = useColorScheme();
+
+  return (
+    <TouchableOpacity
+      style={getStyles(mode).selectedContact}
+    >
+      <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
+        <ImgAvatar id={item.id} nombre={item.name} detail={false}/>
+        
+      </View>
+
+      <Text style={getStyles(mode).chatUsernameSmall}>
+        {ellipString(item.name, 8)}
+      </Text>
+    </TouchableOpacity>
   );
 };
 

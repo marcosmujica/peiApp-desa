@@ -63,6 +63,11 @@ export async function db_addTicketInfo (data)
  return await db_add(db_TICKET_INFO,null, data)
 }
 
+export async function db_getAllTicketRating ()
+{
+    return await db_getAll(db_RATING)
+}
+
 export async function db_updateTicketRating (idTicket, rating)
 {
  return await db_updateDoc (db_RATING, idTicket, new RATING(idTicket, rating))   
@@ -80,8 +85,8 @@ export async function db_addTicket (data)
 { return (await db_add (db_TICKET, null, data))}
 
 // mm - agrega un registro de asociacion entre tickets y grupos
-export async function db_addGroupByTicket(data)
-{return (await db_add (db_GROUP_BY_TICKET, null, data))}
+export async function db_addGroupByTicket(id, data)
+{return (await db_add (db_GROUP_BY_TICKET, id, data))}
 
 
 export async function db_addGroupUsers (idGroup, data)
@@ -138,6 +143,16 @@ export async function db_getTicketViewByTicketId (idTicket)
     let aux = await db_find (db_TICKET_VIEW, {idTicket:idTicket})
     if (aux!=false) return (aux[0])
     return false
+}
+
+export async function db_getTicketViewByIdUser (idUser)
+{
+    return await db_find (db_TICKET_VIEW, {idUserTo:idUser})
+}
+
+export async function db_getAllGroups ()
+{
+    return await db_getAll (db_GROUP_TICKET)
 }
 
 export async function db_updateTicketInfo (idTicket, idUser, type, data)

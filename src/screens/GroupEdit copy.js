@@ -29,15 +29,13 @@ import { CONTACT, GROUP_TICKETS } from "../commonApp/dataTypes";
 import { getProfile } from "../commonApp/profile";
 import SearchBar from "../components/SearchBar";
 import TitleBar from "../components/TitleBar";
-import {checkContactsPermission, getAllContacts, getContactName} from "../commonApp/contacts"
+import {checkContactsPermission, getAllContacts} from "../commonApp/contacts"
 import Loading from "../components/Loading";
 
 const GroupEdit = ({ navigation, route }) => {
   let isAddGroup = route.params["isAddGroup"] == undefined  ? false  : route.params["isAddGroup"];
   let isUpdateGroup = route.params["isUpdateGroup"] == undefined  ? false  : route.params["isUpdateGroup"];
   let idTicketGroup = route.params["idTicketGroup"] == undefined ? false : route.params["idTicketGroup"];
-
-  const [usersList, setUsersList] = useEffect (route.params ["usersList"] || [])
   
   const [loading, setLoading] = React.useState("");
   const [isSearch, setIsSearch] = useState (false)
@@ -56,19 +54,11 @@ const GroupEdit = ({ navigation, route }) => {
       setContacts (aux);
       setGroupData(aux);
       setIsSearch (false)
-
-      debugger
-      if (usersList !=undefined)
-      {
-        for (let i=0;i<usersList.length;i++)
-        {
-          selectedContacts.push ({phone:usersList[i], name:getContactName(usersList[i])})
-        }
-      }
     } catch (err) {
       console.error("Error obteniendo contactos:", err);
     }
   })();
+
 
     if (isUpdateGroup) {
       getGroupInfo();

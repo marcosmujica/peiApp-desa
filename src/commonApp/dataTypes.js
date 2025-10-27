@@ -147,8 +147,8 @@ export class TICKET {
   constructor()
   {
     this.type = "ticket" // mm - tipo de ticket
-    this.idTicketGroup = "" // mm - id del grupo a quien pertenece el usuario que creo el ticket
     this.nameTicketGroup = "" // mm - nombre del grupoby
+    this.idTicketGroup = "" // mm - id del grupo a quien pertenece el usuario que creo el ticket
     this.idTicketGroupBy = "" // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
     this.nameTicketGroupBy = "" // mm - nombre del grupo
     this.idUserFrom = "" //mm - quien origina el ticket
@@ -288,11 +288,14 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
   constructor ()
   {
     this.idTicket = ""
-    this.avatar = ""
     this.title = ""
     this.amount = 0
     this.currency = ""
     this.way = ""
+    this.idGroup = ""
+    this.idGroupBy = ""
+    this.idUserTo = "" // mm - a quien le corresponde el ticket sin sea al usuario logueado
+    this.idUserCreatedBy = ""
     this.lastMsg = ""
     this.status = ""
     this.statusText = ""
@@ -300,6 +303,44 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
     this.seen = false
     this.ts = new Date()
     this.unread = 0
+    this.deleted = false
+    this.dueDate = new Date()
+  }
+}
+
+export class GROUP_LIST_ITEM { // mm - type para los mensajes que se muestran en home
+  constructor ()
+  {
+    this.idGroup = ""
+    this.name = ""
+    this.amount = 0
+    this.currency = ""
+    this.usersList = []
+    this.idUserCreatedBy = ""
+    this.lastMsg = ""
+    this.isOpen = false
+    this.seen = false
+    this.ts = new Date()
+    this.unread = 0
+    this.deleted = false
+  }
+}
+export class GROUP_BY_LIST_ITEM { // mm - type para los mensajes que se muestran en home
+  constructor ()
+  {
+    this.idGroup = ""
+    this.idGroupBy = ""
+    this.name = ""
+    this.amount = 0
+    this.currency = ""
+    this.usersList = []
+    this.idUserCreatedBy = ""
+    this.lastMsg = ""
+    this.isOpen = false
+    this.seen = false
+    this.ts = new Date()
+    this.unread = 0
+    this.deleted = false
   }
 }
 

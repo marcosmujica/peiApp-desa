@@ -113,7 +113,7 @@ const UserProfile = ({ navigation }) => {
                 alignItems: "center",
               }}
             >
-              <ImgAvatar id={idUser} key={avatarKey} cache={false}/>
+              <ImgAvatar id={idUser} key={avatarKey} cache={false} detail={false}/>
               <View
                 style={{
                   position: "absolute",

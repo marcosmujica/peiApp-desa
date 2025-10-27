@@ -4,7 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 export const getUId = () => {return uuidv4()}
 
 export const formatDateToText = (dateString) => {
-  let diff = diasEntreFechas (new Date(dateString), new Date())
+  let diff = 0
+  if (typeof dateString == "object") diff = diasEntreFechas (dateString, new Date())
+  if (typeof dateString == "string") diff = diasEntreFechas (new Date(dateString), new Date())
+  
   return (diff == 0 ? "Hoy" : diff == 1 ? "Mañana" : diff == -1 ? "Ayer" : new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric'}).format(new Date(dateString)))
 };
 
@@ -42,7 +45,12 @@ function sum(arr, campo) {
   }, 0);
 }
 
+export function getUniqueValues(arr, campo) {
+  return [...new Set(arr.map(obj => obj[campo]))];
+}
+
 export const formatNumber = (num) => {
+  if (num == 0) return ("0")
   try{
     const parts = num.toString().split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -78,7 +86,7 @@ export const duplicateTicket= ( ticket)=>
   let aux = new TICKET()
 
   aux.idTicketGroupBy = ticket.idTicketGroupBy // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
-  aux.idUser = ticket.idUser //mm - usuario al cual pertenece el ticket
+  //aux.idUser = ticket.idUser //mm - usuario al cual pertenece el ticket
   aux.idUserCreatedBy = ticket.idUserCreatedBy 
   aux.idTicketGroup = ticket.idTicketGroup
   aux.type = ticket.type
@@ -100,7 +108,7 @@ export const duplicateTicket= ( ticket)=>
   aux.title = ticket.title + " - DUPLICADO" // mm - titulo del ticket
   aux.note = ticket.note // mm - descripcion del ticket
   aux.notePrivate = ticket.notePrivate // mm - descripcion privada del ticket, para guardar informacion que solo ve el creador
-  
+  0
   aux.metadata = {
     notes: ticket.metadata.notes,
     externalReference: ticket.metadata.externalReference // mm - referencia externa del ticket por ej factura_001

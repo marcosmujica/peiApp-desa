@@ -407,7 +407,7 @@ const ChatDetails = ({ navigation, route }) => {
         <TitleBar
           goBack={true}
           title={ellipString(ticketTitle, 20)}
-          subtitle={ticketUsername}
+          subtitle={getContactName (idUserTo)}
           idAvatar={idUserTo}
         />
         {/* debug view removed */}

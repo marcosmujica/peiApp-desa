@@ -5,12 +5,26 @@ import { tStyles, fonts, colors } from "../common/theme";
 const lightStyles = StyleSheet.create({
     container: {
         ...tStyles.flex1,  
-        backgroundColor: colors.gray5
+        backgroundColor: colors.gray5,
+        overflow: 'visible'
     },
+    floatingBtn: {
+    position: "absolute",
+    bottom: 50,
+    right: 15,
+    width: 52,
+    height: 52,
+    zIndex: 10000,
+    backgroundColor: colors.primary,
+    ...tStyles.centerx,
+    ...tStyles.centery,
+    borderRadius: 15,
+  },
     info: {
         backgroundColor: colors.white,
         paddingBottom: 20,
-        paddingTop: 120
+        paddingTop: 140,
+        overflow: 'visible'
     },
     titleText: {
         ...fonts.medium,
@@ -164,7 +178,12 @@ const darkStyles = StyleSheet.create({
     },  
     actionText: {
         ...lightStyles.actionText
+    },
+    
+    floatingBtn: {
+        ...lightStyles.floatingBtn
     }
+    
 });
 
 

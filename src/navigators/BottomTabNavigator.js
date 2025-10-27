@@ -16,10 +16,10 @@ const  BottomTabNavigator = () => {
   return (
     <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerStyle: getStyles(mode).headerNav }}>
         <Tab.Screen 
-            name="Chats" 
+            name="Tickets" 
             component={Screens.Home} 
             options={{ 
-                title: "GS ChatApp",
+                title: "peiApp",
                 tabBarIcon: () =>  <MaterialIcons name="chat" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,
                 tabBarSelectedIcon: () => <MaterialIcons name="chat" size={ 20 } color={ colors.primary }/>,
                 headerTitle: (props) => <CustomHeader {...props} />,
@@ -27,16 +27,27 @@ const  BottomTabNavigator = () => {
             }} 
         />
         <Tab.Screen 
-            name="Updates" 
-            component={Screens.Updates} 
+            name="Grupos" 
+            component={Screens.HomeGroups} 
             options={{ 
-                tabBarIcon: () =>  <MaterialIcons name="bubble-chart" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,
-                tabBarSelectedIcon: () => <MaterialIcons name="bubble-chart" size={ 20 } color={ colors.primary } />,
+              title: "peiApp",
+                tabBarIcon: () =>  <MaterialIcons name="groups" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,
+                tabBarSelectedIcon: () => <MaterialIcons name="groups" size={ 20 } color={ colors.primary } />,
+                headerTitle: (props) => <CustomHeader {...props} />,
+                tabBarBadge: 10,
+            }} 
+        />
+        <Tab.Screen 
+            name="Info" 
+            component={Screens.Calls} 
+            options={{ 
+                tabBarIcon: () =>  <Ionicons name="call-sharp" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,
+                tabBarSelectedIcon: () => <Ionicons name="call-sharp" size={ 20 } color={ colors.primary } />,
                 headerTitle: (props) => <CustomHeader {...props} />
             }} 
         />
         <Tab.Screen 
-            name="Calls" 
+            name="Info1" 
             component={Screens.Calls} 
             options={{ 
                 tabBarIcon: () =>  <Ionicons name="call-sharp" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,
@@ -46,7 +57,7 @@ const  BottomTabNavigator = () => {
         />
 
         <Tab.Screen 
-            name="Settings" 
+            name="Settings1" 
             component={Screens.Settings} 
             options={{ 
                 tabBarIcon: () =>  <FontAwesome5 name="cog" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />,

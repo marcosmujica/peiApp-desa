@@ -17,6 +17,9 @@ import TicketInfo from "../components/TicketInfo";
 import TicketEdit from "../components/TicketEdit";
 import TicketChat from "../components/TicketChat";
 import TicketLog from "../components/TicketLog";
+import { db_getTicket } from "../commonApp/database";
+import { isMe } from "../commonApp/profile";
+import { getContactName } from "../commonApp/contacts";
 
 //import { ModalSlideFromBottomIOS } from '@react-navigation/stack/lib/typescript/src/TransitionConfigs/TransitionPresets';
 
@@ -26,7 +29,8 @@ const TicketDetail = ({ navigation, route }) => {
   const { options, setOptions, showAlertModal } = React.useContext(AppContext);
 
   const [idTicket] = useState(route.params["idTicket"]);
-  const [ticketName] = useState(route.params["name"]);
+  const [idUserTo, setIdUserTo] = useState("");
+  const [ticketName, setTicketName] = useState("");
   const [loading, setLoading] = useState(false);
   const [codeActive, setCodeActive] = useState("");
 
@@ -86,7 +90,24 @@ const TicketDetail = ({ navigation, route }) => {
     viewInfo()
   }
 
+  async function loadTicket()
+  {
+    try {
+      let aux = await db_getTicket (idTicket)
+      if (!aux) return
+
+      //mm - si el ticket lo cree yo el usuario es el otro
+      setIdUserTo (isMe (aux.idUserCreatedBy) ? aux.idUserTo : aux.idUserFrom)
+
+      setTicketName (aux.title)
+
+
+    } catch (e) {console.log ("error loadticket");console.log (e)}
+  }
+
   useEffect(() => {
+
+    loadTicket ()
     viewInfo ()
   
     return () => {
@@ -103,7 +124,7 @@ const TicketDetail = ({ navigation, route }) => {
       <Loading loading={loading} title="Buscando..." />
       <KeyboardAvoidingView behavior={behavior} style={[tStyles.flex1]}>
         {/* Top Bar  */}
-        <TitleBar title={ticketName} subtitle="" goBack={true} options={[]} />
+        <TitleBar title={ticketName} subtitle={getContactName(idUserTo)} goBack={true} options={[]} idAvatar={idUserTo} detail={false}/>
         <View style={{ padding: 10 }}>
           <BadgeBtn idActive={codeActive}  items={buttons}></BadgeBtn>
         </View>

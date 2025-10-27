@@ -45,13 +45,12 @@ import DateBtn from "../components/DateBtn";
 import BadgeBtn from "../components/BadgeBtn";
 
 const NewTicket = ({ navigation, route }) => {
+  debugger
   const [idTicketGroup] = React.useState(route.params["idTicketGroup"] || "");
-  const [idTicketGroupBy] = React.useState(route.params["idTicketGroupBy"] || "");
+  let idTicketGroupBy = route.params["idTicketGroupBy"] || "";
+  const [groupName, setGroupName] = React.useState(route.params["name"]) || "";
   const [useType, setUseType] = React.useState(TICKET_USE_TYPE_PERSONAL);
   const [isShowDetail, setIsShowDetail] = React.useState(false);
-  const [isCollectProcedure, setIsCollectProcedure] = React.useState (true)
-  
-  let usersList = route.params ["usersList"] || []
 
   // mm - si no viene un parametro ticketDefault lo inicializo en blanco
   // este parametro toma los datos por default de los campos
@@ -74,7 +73,6 @@ const NewTicket = ({ navigation, route }) => {
   const [ticketDescPrivate, setTicketDescPrivate] = React.useState(ticketDefault.notePrivate);
   const [ticketAmount, setTicketAmount] = React.useState(ticketDefault.amount == 0 ? "" : String(ticketDefault.amount)); // mm - lo dejo en string para que no me aparezco un 0 en el placeholder
   const [ticketRef, setTicketRef] = React.useState(ticketDefault.metadata.externalReference);
-  
 
   const { showAlertModal } = React.useContext(AppContext);
   const [loading, setLoading] = React.useState("");
@@ -94,7 +92,6 @@ const NewTicket = ({ navigation, route }) => {
   const [payType, setTypePay] = useState(TICKET_INFO_TYPE_PAY_PLANNED);
 
   const toggleTicketOpen = () => setisTicketOpen((previousState) => !previousState);
-  const toggleCollectProcedure = () => setIsCollectProcedure((previousState) => !previousState);
 
   let userAreaToWork = ""; /// mm - el codigo al que se le acredita el ticket
 
@@ -153,6 +150,14 @@ const NewTicket = ({ navigation, route }) => {
     setLoading(true);
 
     // mm - si no se creo la asociacion de tickets lo creo
+    if (idTicketGroupBy == undefined) {
+      let groupBy = new GROUP_BY_TICKETS();
+      groupBy.name = ticketName;
+      groupBy.idTicketGroup = idTicketGroup;
+      groupBy.idUserCreatedBy = profile.idUser;
+      groupBy.idUserOwner = profile.idUser;
+      idTicketGroupBy = await db_addGroupByTicket(groupBy);
+    }
     for (const item of groupUsersList) {
       let idToUser = item.contact;
       // mm - para no crearle un ticket al creador del ticket
@@ -178,7 +183,6 @@ const NewTicket = ({ navigation, route }) => {
         ticket.idUserTo = idToUser;
         ticket.idTicketGroupBy = idTicketGroupBy;
         ticket.idTicketGroup = idTicketGroup;
-        ticket.collectionProcedure = isCollectProcedure
         
         // mm - para cada usuario del grupo le agrego un ticket con la misma info
         let idTicket = await db_addTicket(ticket);
@@ -298,9 +302,11 @@ const NewTicket = ({ navigation, route }) => {
 
     // mm - obtengo la infoirmacion del grupo
     try {
+      let aux = await db_getGroupInfo(idTicketGroup);
+      setGroupInfo(aux);
       // mm - agrego a la lista y le pongo el idunico
       setGroupUsersList(
-        usersList.map((item, index) => ({
+        aux.groupUsers.map((item, index) => ({
           name: getContactName(item),
           contact: item,
           id: index + 1,
@@ -573,22 +579,6 @@ const NewTicket = ({ navigation, route }) => {
                       />
                     </View>
                   </View>
-                  <Hr/>
-                  <View style={{ paddingTop: 0, paddingBottom:30 }}>
-                    <View style={styles.row}>
-                      <Text style={getStyles(mode).sectionTitle}>Ayúdame con este ticket</Text>
-                      <Switch
-                        value={isCollectProcedure}
-                        onValueChange={toggleCollectProcedure}
-                        trackColor={{ false: "#767577", true: "#b3b3b3ff" }}
-                        thumbColor={isCollectProcedure ? "#aafdc2ff" : "#f4f3f4"}
-                        />
-                    </View>
-                    <View style={[styles.row, {padding:0, paddingHorizontal:10}]}>
-                      <Text style={getStyles(mode).subNormalText}>Usar un procedimiento para recordar el pago o cobro de este ticket</Text>
-                    </View>
-                  </View>
-                        <Hr/>
                 </View>
               </View>
             )}
@@ -612,7 +602,7 @@ const SelectedItem = ({ removeContactFromList, item, profile }) => {
       {item.contact != profile.idUser && (
         <TouchableOpacity onPress={() => removeContactFromList(item)} style={getStyles(mode).selectedContact}>
           <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
-            <ImgAvatar id={item.contact} detail={false}/>
+            <ImgAvatar id={item.contact} />
             <View style={getStyles(mode).avatarHolder}>
               <Fontisto name="close" size={16} color={colors.gray30} />
             </View>

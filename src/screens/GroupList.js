@@ -32,13 +32,10 @@ import TitleBar from "../components/TitleBar";
 import {checkContactsPermission, getAllContacts, getContactName} from "../commonApp/contacts"
 import Loading from "../components/Loading";
 
-const GroupEdit = ({ navigation, route }) => {
-  let isAddGroup = route.params["isAddGroup"] == undefined  ? false  : route.params["isAddGroup"];
-  let isUpdateGroup = route.params["isUpdateGroup"] == undefined  ? false  : route.params["isUpdateGroup"];
-  let idTicketGroup = route.params["idTicketGroup"] == undefined ? false : route.params["idTicketGroup"];
+const GroupList = ({ navigation, route }) => {
 
-  const [usersList, setUsersList] = useEffect (route.params ["usersList"] || [])
   
+  const [usersList, setUsersList] = React.useState([])
   const [loading, setLoading] = React.useState("");
   const [isSearch, setIsSearch] = useState (false)
 
@@ -55,10 +52,9 @@ const GroupEdit = ({ navigation, route }) => {
       let aux = getAllContacts()
       setContacts (aux);
       setGroupData(aux);
-      setIsSearch (false)
+      setIsSearch (true)
 
-      debugger
-      if (usersList !=undefined)
+      if (usersList.length >0)
       {
         for (let i=0;i<usersList.length;i++)
         {
@@ -70,9 +66,6 @@ const GroupEdit = ({ navigation, route }) => {
     }
   })();
 
-    if (isUpdateGroup) {
-      getGroupInfo();
-    }
     return () => {
       console.log("🧹 Componente desmontado");
       // Esto se ejecuta cuando el componente se va de pantalla
@@ -117,11 +110,12 @@ const GroupEdit = ({ navigation, route }) => {
 
   function checkSave()
   {
-    // mm  -si es mas de  1 seleccionado
-    if (selectedContacts.length >=2)
-    { showAlertModal ("Atención", "¿Querés crear un grupo con estos " + selectedContacts.length + " miembros?", {ok:true, cancel:true}, () => confirmModal ) }
-    else
-    { saveUsers() }
+    if (selectedContacts.length==0)
+    {
+      showAlertModal ("Atención", "Por favor, selecciona al menos un contacto para el grupo", {ok:true, cancel:false})
+      return
+    }
+    navigation.navigate("UserGroupInfo", { idTicketGroup: "", isAddGroup: true, groupUsers: selectedContacts.map ((item) => item.phone)}) 
   }
 
   const confirmModal = async (option) => {
@@ -130,7 +124,7 @@ const GroupEdit = ({ navigation, route }) => {
   }
 
   const saveUsers = async () => {
-    navigation.navigate("NewTicket", { idTicketGroup: "", usersList: selectedContacts.map ((item) => item.phone)}) 
+    
   }
 
   const saveGroup = async () => {
@@ -185,36 +179,36 @@ const GroupEdit = ({ navigation, route }) => {
     <SafeAreaView style={getStyles(mode).container}>
       <View>
         {/* Top Bar  */}
-        <TitleBar title="Miembros" subtitle="Max. 100 miembros" goBack={true} options={[{name: "search", onClick: ()=>setIsSearch(!isSearch)}]}/>
+            <TitleBar title="Contactos del Grupo" subtitle="Max. 50 contactos" goBack={true} options={[{name: "search", onClick: ()=>setIsSearch(!isSearch)}]}/>
 
-        {isSearch && <View style={{ paddingHorizontal: 20 }}>
-          <SearchBar textToSearch={searchText} />
-        </View>}
+            {isSearch && <View style={{ paddingHorizontal: 20 }}>
+              <SearchBar textToSearch={searchText} />
+            </View>}
 
-        {/* Selected Contacts */}
+            {/* Selected Contacts */}
 
-        <View style={[getStyles(mode).topBarHolder, { borderBottomWidth: 0 }]}>
-            <TouchableOpacity
-              onPress={() => checkSave()}
-              style={getStyles(mode).floatingBtn}
-            >
-              <Fontisto name="arrow-right" size={20} />
-            </TouchableOpacity>
-          <FlatList
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            data={selectedContacts}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <SelectedItem
+                <View style={[getStyles(mode).topBarHolder, { borderBottomWidth: 0, minHeight: 80 }]}>
+                  <FlatList
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                data={selectedContacts}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <SelectedItem
                 item={item}
                 removeContactFromList={removeContactFromList}
-              />
-            )}
-            contentContainerStyle={{ paddingHorizontal: 15 }}
-          />
-        </View>
-        {/* Contacts Listing */}
+                  />
+                )}
+                contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center', flexGrow: 1 }}
+                  />
+                  <TouchableOpacity
+                onPress={() => checkSave()}
+                style={[getStyles(mode).floatingBtn, { position: 'absolute', right: 15, alignSelf: 'center' }]}
+                  >
+                <Fontisto name="arrow-right" size={20} />
+                  </TouchableOpacity>
+                </View>
+                {/* Contacts Listing */}
         <View style={{ paddingHorizontal: 15, paddingTop: 15 }}>
           
           <FlatList
@@ -312,4 +306,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GroupEdit;
+export default GroupList;

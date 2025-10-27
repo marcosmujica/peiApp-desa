@@ -16,7 +16,7 @@ const AlertModal = ({setModal}) => {
     const openModal = () => {
         Animated.timing(scale, {
             toValue: 1,
-            duration: 300,
+            duration:100,
             useNativeDriver: true
         }).start();
     }

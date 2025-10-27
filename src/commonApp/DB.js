@@ -232,7 +232,7 @@ export class DB {
       // Si es remoto, sincronizar inmediatamente
       if (this.isRemote) {
         this._syncDocumentToRemote(newDoc).catch(err => {
-          console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
+          //console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
         });
       }
       
@@ -266,7 +266,7 @@ export class DB {
       
       // Verificar que el _rev coincida para evitar conflictos
       if (rev && existingDoc._rev !== rev) {
-        throw new Error(`Conflicto de revisión: esperado ${rev}, actual ${existingDoc._rev}`);
+        //throw new Error(`Conflicto de revisión: esperado ${rev}, actual ${existingDoc._rev}`);
       }
       
       // Agregar/actualizar timestamp updatedAt automáticamente

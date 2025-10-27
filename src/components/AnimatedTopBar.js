@@ -1,23 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, useWindowDimensions, useColorScheme, Platform, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, Extrapolation, interpolate } from 'react-native-reanimated';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Feather, Fontisto } from '@expo/vector-icons';
 import { getStyles } from '../styles/common';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../common/theme';
 
+// Crear un TouchableOpacity animado
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const AnimatedTopBar = ({ scroll, scrollOffset, uri, name }) => {
+const AnimatedTopBar = ({ scroll, scrollOffset, uri, name, onImagePress }) => {
     const navigation = useNavigation();
     const mode = useColorScheme();
     const { width } = useWindowDimensions();
+    const [imageError, setImageError] = useState(false);
+
+    // Imagen por defecto
+    const defaultImage = require('../assets/avatar/user.png');
 
 
     const animatePicture = useAnimatedStyle(() => {
-        const yValue = Platform.OS === 'ios' ? (1.4 * 54) : (1.7 * 45);
+        // Ajuste para alinear la imagen pequeña con el título y botón de back en el topBar
+        // Necesitamos que suba desde top:80 hasta la línea del topBar
+        const yValue = Platform.OS === 'ios' ? 68 : 62;
         const translateY = interpolate(scroll.value, [0, scrollOffset], [0, -yValue], Extrapolation.CLAMP)
 
-        const xValue = width/2 - 30 - 26;
+        // Ajustado para mover más a la derecha (aumentando el valor negativo)
+        const xValue = width/2 - 30 - 38;
         const translateX = interpolate(scroll.value, [0, scrollOffset], [0, -xValue], Extrapolation.CLAMP)
         
         const scale = interpolate(scroll.value, [0, scrollOffset], [1, 0.3], Extrapolation.CLAMP)
@@ -39,18 +48,29 @@ const AnimatedTopBar = ({ scroll, scrollOffset, uri, name }) => {
 
     return(
         <>
-            <View style={ getStyles(mode).topBarHolder }>
+            <View style={ [getStyles(mode).topBarHolder, { overflow: 'visible' }] }>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <AntDesign name="arrowleft" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } />
+                    <Feather name="arrow-left" size={ 20 } color={ (mode == 'dark') ? colors.gray30 : null } style={{padding:10}} />
                 </TouchableOpacity>  
 
                 <Animated.Text style={ [getStyles(mode).topBarMainText, animateName] }>{ name }</Animated.Text>   
             </View>
             
-            <Animated.Image
-                source={{ uri }}
-                style={ [getStyles(mode).avatar, animatePicture] }
-            />
+            <AnimatedTouchable 
+                activeOpacity={0.8}
+                onPress={() => onImagePress && onImagePress()}
+                style={[getStyles(mode).avatar, animatePicture]}
+            >
+                <Animated.Image
+                    source={imageError || !uri ? defaultImage : { uri }}
+                    style={{ width: 120, height: 120, borderRadius: 60 }}
+                    resizeMode="cover"
+                    onError={() => {
+                        console.log("❌ Error al cargar imagen, mostrando imagen por defecto");
+                        setImageError(true);
+                    }}
+                />
+            </AnimatedTouchable>
         </>
     )
 }

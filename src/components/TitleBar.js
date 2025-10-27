@@ -12,7 +12,7 @@ import { MaterialCommunityIcons, Fontisto } from "@expo/vector-icons";
 import Hr from "../components/Hr"
 import ImgAvatar from "./ImgAvatar";
 
-const TitleBar = ({title, subtitle, goBack, onGoBack, options, idAvatar = "" }) => {
+const TitleBar = ({title, subtitle, goBack, onGoBack, options, idAvatar = "", detail = false }) => {
 
   const navigation = useNavigation()
   const mode = useColorScheme();
@@ -35,7 +35,7 @@ const TitleBar = ({title, subtitle, goBack, onGoBack, options, idAvatar = "" }) 
           </TouchableOpacity>
         )}
         {idAvatar != "" && (
-          <View style={{marginRight:10}}><ImgAvatar id={idAvatar} size={35}  /></View>
+          <View style={{marginRight:10}}><ImgAvatar id={idAvatar} size={35} detail={detail} /></View>
         )}
         <TouchableOpacity 
           style={{ 

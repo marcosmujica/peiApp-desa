@@ -62,14 +62,7 @@ const TicketLog = ({ idTicket }) => {
 
   async function refreshData() {
     setLoading(true);
-
-    console.log (idTicket)
-    console.log ("ENTRO!!")
     let data = await db_getTicketLog(idTicket);
-    
-    console.log ("resultado data")
-    console.log (data)
-    //let data = await db_getTicketLog(idTicket);
 
     if (data != []) {
       let dataAux = [];
@@ -117,16 +110,15 @@ const LogItem = ({ chat, idUser, onOpen }) => {
       ? "Importe: " + chat.currency + "  " + formatNumber(chat.amount)
       : "";
   let text4 = chat.note != "" ? '=> " ' + chat.note + ' "' : "";
-
   return (
     <View
       style={[
         getStyles(mode).chatBubble,
-        chat.IdUser == idUser ? getStyles(mode).chatBubbleMe : null,
+        chat.idUserFrom == idUser ? getStyles(mode).chatBubbleMe : null,
       ]}
     >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <ImgAvatar id={chat.idUser} size={15} />
+        <ImgAvatar id={chat.idUserFrom} size={25} />
         <Text
           style={[
             getStyles(mode).chatText,
@@ -137,7 +129,7 @@ const LogItem = ({ chat, idUser, onOpen }) => {
         </Text>
       </View>
 
-      <Text style={getStyles(mode).chatText}>{text2}</Text>
+      <Text style={[getStyles(mode).chatText, {paddingTop:10}]}>{text2}</Text>
       {text3 != "" && <Text style={getStyles(mode).chatText}>{text3}</Text>}
       {text4 != "" && <Text style={getStyles(mode).chatText}>{text4}</Text>}
 

@@ -182,6 +182,7 @@ export async function getFileAndUpload (idUser, isAvatar, mediaType)
     // Build optimistic message and upload
         const msgFileId = `${idUser}_${uuidv4()}`;
         const file = { uri: asset.uri, filename: msgFileId, type: asset.type || (requested === 'file' ? 'application/pdf' : 'image/jpeg') };
+        console.log (file)
         const uploadedFile = await uploadFileToServer(idUser, isAvatar, file);
 
         if (!uploadedFile) {

@@ -78,6 +78,7 @@ const TicketChat = ({idTicket}) => {
     msg.message = message;
     msg.idTicket = idTicket;
     msg.fromIdUser = idUser;
+    debugger
     //msg.toIdUser = ""; // -- OJO!!!! falta poner el destinatario
     db_addTicketChat(msg);
 
@@ -85,7 +86,16 @@ const TicketChat = ({idTicket}) => {
   }
 
   function newMsgTicket(isNew, doc) {
-    setChatData((prevItems) => [...prevItems, doc]);
+    setChatData((prevItems) => {
+      const newItems = [...prevItems, doc];
+      // Ordenar descendentemente por TSSent porque el FlatList está invertido
+      newItems.sort((a, b) => {
+        const timeA = new Date(a.TSSent).getTime();
+        const timeB = new Date(b.TSSent).getTime();
+        return timeB - timeA; // Orden descendente para FlatList invertido
+      });
+      return newItems;
+    });
   }
 
   // mm  - seteo el listener para los cambios en el chat
@@ -93,9 +103,16 @@ const TicketChat = ({idTicket}) => {
   async function refreshData() {
     setLoading(true);
     let data = await db_getTicketChat(idTicket);
-    if (data != false) {
-      data.sort((a, b) => new Date(a) - new Date(b));
+    if (data && Array.isArray(data)) {
+      // Ordenar descendentemente por TSSent porque el FlatList está invertido
+      data.sort((a, b) => {
+        const timeA = new Date(a.TSSent).getTime();
+        const timeB = new Date(b.TSSent).getTime();
+        return timeB - timeA; // Orden descendente para FlatList invertido
+      });
       setChatData(data);
+    } else {
+      setChatData([]);
     }
     setLoading(false);
   }
@@ -127,6 +144,7 @@ const TicketChat = ({idTicket}) => {
                 <ChatItem chat={item} idUser={idUser} />
               )}
               contentContainerStyle={getStyles(mode).chatListing}
+              inverted={true}
               />
 
             {/* New Chat Input */}

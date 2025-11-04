@@ -136,7 +136,24 @@ export class DB {
    */
   async _initSQLite() {
     try {
+      // Si ya hay una conexión, no intentar abrir de nuevo
+      if (this.db) {
+        console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
+        try {
+          await this.db.getAllAsync('SELECT 1');
+          console.log(`[DB:${this.dbName}] Conexión SQLite activa y funcional`);
+          return;
+        } catch (e) {
+          console.warn(`[DB:${this.dbName}] Conexión existente no responde, reabriendo...`);
+          this.db = null;
+        }
+      }
+
       this.db = await SQLite.openDatabaseAsync(this.dbName);
+      
+      if (!this.db) {
+        throw new Error('No se pudo establecer conexión SQLite');
+      }
       
       console.log(`[DB:${this.dbName}] Conexión SQLite establecida`);
       
@@ -185,6 +202,8 @@ export class DB {
       console.log(`[DB:${this.dbName}] ✓ SQLite inicializado correctamente`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error inicializando SQLite:`, error);
+      this.db = null;
+      this.initialized = false;
       throw error;
     }
   }
@@ -412,8 +431,9 @@ export class DB {
       return docs.map ((item)=> ({ ...item.data || item, id : item._id}));
 
     } catch (error) {
-      console.error(`[DB:${this.dbName}] Error en getAll:`, error);
-      throw error;
+      //console.error(`[DB:${this.dbName}] Error en getAll:`, error);
+      //console.error(`[DB:${this.dbName}] Estado: initialized=${this.initialized}, db=${!!this.db}, isWeb=${this.isWeb}`);
+      //throw error;
     }
   }
 
@@ -470,7 +490,6 @@ export class DB {
         if (!dataJson || dataJson === 'null') {
           throw new Error(`Datos inválidos para documento ${doc._id}`);
         }
-        
         /*console.log(`[_putLocal] Guardando documento ${doc._id}:`, {
           _rev: doc._rev,
           _deleted: doc._deleted,
@@ -493,7 +512,6 @@ export class DB {
         if (this.emitEvent && shouldEmitEvent)
         {
           let event = new DB_EVENT ()
-          debugger
           event.table = this.dbName
           event._id = doc._id
           event._rev = doc._rev
@@ -559,20 +577,34 @@ export class DB {
     // Validar que la base de datos esté lista
     await this._validateDatabaseReady();
     
+    if (!this.db) {
+      throw new Error(`[DB:${this.dbName}] Conexión a base de datos es null después de validación`);
+    }
+    
     /// mmm !! se obtiene todo el registro, incluyendo el header
     if (this.isWeb) {
       return  await this.db.getAll('documents');
     } else {
-      const result = await this.db.getAllAsync('SELECT * FROM documents');
-      return result.map(row => {
-        const doc = {}
-        doc.data = JSON.parse(row.data);
-        doc._id = row._id;
-        doc._rev = row._rev;
-        doc._deleted = row._deleted === 1;
-        doc.syncStatus = row.syncStatus;
-        return doc;
-      });
+      try {
+        const result = await this.db.getAllAsync('SELECT * FROM documents');
+        return result.map(row => {
+          const doc = {}
+          doc.data = JSON.parse(row.data);
+          doc._id = row._id;
+          doc._rev = row._rev;
+          doc._deleted = row._deleted === 1;
+          doc.syncStatus = row.syncStatus;
+          return doc;
+        });
+      } catch (error) {
+        console.error(`[DB:${this.dbName}] Error en _getAllLocal (SQLite):`, error);
+        console.error(`[DB:${this.dbName}] Estado db:`, {
+          hasDb: !!this.db,
+          initialized: this.initialized,
+          dbType: typeof this.db
+        });
+        throw error;
+      }
     }
   }
 
@@ -1010,11 +1042,25 @@ export class DB {
    */
   async _validateDatabaseReady() {
     if (!this.initialized) {
-      throw new Error(`[DB:${this.dbName}] Base de datos no inicializada`);
+      console.warn(`[DB:${this.dbName}] Base de datos no inicializada, intentando reinicializar...`);
+      try {
+        await this.initDB();
+      } catch (error) {
+        throw new Error(`[DB:${this.dbName}] Falló la reinicialización: ${error.message}`);
+      }
     }
     
     if (!this.db) {
-      throw new Error(`[DB:${this.dbName}] Conexión a base de datos no disponible`);
+      console.warn(`[DB:${this.dbName}] Conexión no disponible, intentando reabrir...`);
+      try {
+        if (this.isWeb) {
+          await this._initIndexedDB();
+        } else {
+          await this._initSQLite();
+        }
+      } catch (error) {
+        throw new Error(`[DB:${this.dbName}] Falló la reconexión: ${error.message}`);
+      }
     }
     
     // Para SQLite, verificar que la conexión esté activa
@@ -1023,7 +1069,16 @@ export class DB {
         // Hacer una consulta simple para verificar que la conexión funciona
         await this.db.getAllAsync('SELECT 1');
       } catch (error) {
-        throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error.message}`);
+        console.error(`[DB:${this.dbName}] Error en validación SQLite:`, error);
+        // Intentar reabrir la base de datos una vez más
+        try {
+          console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
+          this.db = await SQLite.openDatabaseAsync(this.dbName);
+          await this.db.getAllAsync('SELECT 1'); // Verificar de nuevo
+          console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
+        } catch (retryError) {
+          throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error.message}`);
+        }
       }
     }
   }

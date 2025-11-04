@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 export class GROUP_TICKETS {
   constructor()
   {
-   // this.idTicketGroup = ""
+    this.id = ""
     this.name = ""
     this.avatar = ""
     this.groupUsers = []
@@ -19,6 +19,7 @@ export class GROUP_TICKETS {
     this.isUserAddTicket = false // mm - si los usuarios pueden tickets o no
     this.isViewMember = false // mm - si pueden ver la lista de miembros
     this.lastMsg = "" // mm - ultimo mensaje enviado al grupo
+    Object.seal(this);
   }
 }
 
@@ -27,6 +28,7 @@ export class RATING {
   {
     this.idTicket =idTicket
     this.rating = rating
+    Object.seal(this);
   }
 }
 
@@ -35,6 +37,7 @@ export class GROUP_BY_TICKETS {
   constructor()
   {
     //this.idTicketGroupBy = ""
+    this.id = ""
     this.name = ""
     this.idTicketGroup = ""
     this.groupUsers = []
@@ -45,14 +48,16 @@ export class GROUP_BY_TICKETS {
     this.lastMsg = "" // mm - uñtimo mensaje enviado al grupo
     this.status = "OPEN"
     this.isPrivate = false // mm - si el grupo es para uso interno 
+    Object.seal(this);
   }
 }
 
-export class TICKET_RECURRENT{
+export class TICKET_REPEAT{
   constructor()
   {
-    this.idTicketRecurrent = ""
+    this.idTicketRepeat = ""
     this.idTicketGroup = ""
+    this.idTicketGroupBy = ""
     this.TSCreated = new Date()
     this.enabled = false
     this.frecuency = TICKET_FRECUENCY_MONTHLY
@@ -74,7 +79,7 @@ export class TICKET_RECURRENT{
       paymentMethod: "",
       transactionId: ""
     }
-
+    Object.seal(this);
   }
 }
 
@@ -87,6 +92,7 @@ export class TICKET_INFO_PAY {
     this.info= { expensesCategory: "",
       type: TICKET_INFO_TYPE_PAY_PLANNED
      }
+     Object.seal(this);
   }
 }   
 export class TICKET_INFO_COLLECT {
@@ -96,6 +102,7 @@ export class TICKET_INFO_COLLECT {
     this.type = TICKET_INFO_TYPE_COLLECT
     this.idUser="",
     this.info= { billsAmount: 0, billsNote: "", areaWork: "" }
+    Object.seal(this);
   }
 }
    
@@ -107,11 +114,12 @@ export class TICKET_INFO_USE_TYPE {
     this.type = TICKET_INFO_TYPE_USE_TYPE
     this.idUser="",
     this.info = {useType: TICKET_USE_TYPE_PERSONAL}
+    Object.seal(this);
   }
 }
    
 export class TICKET_LOG_DETAIL_STATUS {
-  constructor()
+  constructor() 
   {
     this.idTicket = ""
     this.type = TICKET_LOG_DETAIL_TYPE_STATUS // mm - tipo de log de datos
@@ -132,6 +140,7 @@ export class TICKET_LOG_DETAIL_STATUS {
         dueDate : new Date(),
         TSPay: new Date() 
     } // mm- se guarda informacion estructurura del estado
+    Object.seal(this);
   }
 }
 
@@ -146,11 +155,11 @@ export class HELP_DESK {
 export class TICKET {
   constructor()
   {
+    this.idTicket = "" 
     this.type = "ticket" // mm - tipo de ticket
     this.nameTicketGroup = "" // mm - nombre del grupoby
     this.idTicketGroup = "" // mm - id del grupo a quien pertenece el usuario que creo el ticket
     this.idTicketGroupBy = "" // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
-    this.nameTicketGroupBy = "" // mm - nombre del grupo
     this.idUserFrom = "" //mm - quien origina el ticket
     this.idUserTo = "" // mm - a quien se le origina el ticket
     this.idUserCreatedBy = "" // mm - id del usuario que creo el ticket
@@ -162,6 +171,7 @@ export class TICKET {
     this.initialAmount = 0 // mm - monto inicial del ticket porque puede cambiar despues
     this.amount = 0 // mm - monto actual del ticket por si cambio 
     this.netAmount = 0  // mm - ganancia neta del ticket, sacando los gastos
+    this.idTicketRepeat = "" // mm - si se creo desde repeat
     this.seq = 0 // mm - id de la secuenncia del ticket cuando es recurrente
     this.lastMsg = "" // mm - ultimo mensaje enviado 
     this.useType = TICKET_USE_TYPE_PERSONAL // mm - si el ticket es personal, para el negocio o se comparte
@@ -182,6 +192,7 @@ export class TICKET {
       paymentMethod: "", // mm - metodo del pago credito, debito, cash, etc
       transactionId: "" // mm - id de la transaccion 
     }
+    Object.seal(this);
   }
 }
 
@@ -273,6 +284,8 @@ export class LOCAL_PROFILE {
     this.privateGroupByPay = ""
     this.privateGroupByInvestment = ""
     this.config = new USER_CONFIG()
+
+    Object.seal(this);
   }
 }
 
@@ -305,42 +318,9 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
     this.unread = 0
     this.deleted = false
     this.dueDate = new Date()
-  }
-}
+    this.rating = 0
 
-export class GROUP_LIST_ITEM { // mm - type para los mensajes que se muestran en home
-  constructor ()
-  {
-    this.idGroup = ""
-    this.name = ""
-    this.amount = 0
-    this.currency = ""
-    this.usersList = []
-    this.idUserCreatedBy = ""
-    this.lastMsg = ""
-    this.isOpen = false
-    this.seen = false
-    this.ts = new Date()
-    this.unread = 0
-    this.deleted = false
-  }
-}
-export class GROUP_BY_LIST_ITEM { // mm - type para los mensajes que se muestran en home
-  constructor ()
-  {
-    this.idGroup = ""
-    this.idGroupBy = ""
-    this.name = ""
-    this.amount = 0
-    this.currency = ""
-    this.usersList = []
-    this.idUserCreatedBy = ""
-    this.lastMsg = ""
-    this.isOpen = false
-    this.seen = false
-    this.ts = new Date()
-    this.unread = 0
-    this.deleted = false
+    Object.seal(this);
   }
 }
 

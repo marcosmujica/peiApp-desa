@@ -7,8 +7,9 @@ import { getStyles } from "../styles/home";
 import { useNavigation } from "@react-navigation/native";
 import SlideOptions from "../components/SlideOptions";
 import AppContext from "../context/appContext";
+import { displayTime, ellipString } from "../common/helpers";
 import SearchBar from "../components/SearchBar";
-import {formatDateToText} from "../commonApp/functions"
+import BadgeBtn from "../components/BadgeBtn";
 import {
   db_getAllTicketInfoView,
   db_initListener,
@@ -25,18 +26,17 @@ import {
 import ImgAvatar from "../components/ImgAvatar";
 import { getProfile, isMe } from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
-import { displayTime, ellipString } from "../common/helpers";
+import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
-import localData, { EVENT_LOCAL_DATA_CHANGE } from "../commonApp/localData";
-import GroupInfo from "./GroupInfo";
+import localData, { EVENT_LOCAL_DATA_CHANGE } from '../commonApp/localData';
 
-const HomeGroups = ({ navigation }) => {
+const HomeContacts = ({ navigation }) => {
   const colorScheme = useColorScheme();
   const { options, setOptions } = React.useContext(AppContext);
   const [refreshing, setRefreshing] = useState(false);
 
   const [dataListSearch, setDataListSearch] = React.useState([]); // mm - datos a ser visualizados
-  const [dataTicket, setDataTicket] = React.useState([]); // mm - datos filtrados por los filtros
+  const [dataContact, setDataContact] = React.useState([]); // mm - datos filtrados por los filtros
 
   let profile = getProfile();
 
@@ -47,34 +47,36 @@ const HomeGroups = ({ navigation }) => {
   ];
 
   useEffect(() => {
-    // subscribe to new-doc events to reload list
-
     loadData();
-
-    return () => {
-      // cleanup both listeners
-    };
   }, []);
 
   function searchText(textToSearch) {
-    setDataListSearch(!textToSearch ? dataTicket : dataTicket.filter((obj) => obj.name && obj.name.toLowerCase().includes(textToSearch.toLowerCase())));
+    setDataListSearch(!textToSearch ? dataContact : dataContact.filter((obj) => obj.name && obj.name.toLowerCase().includes(textToSearch.toLowerCase())));
   }
 
-  async function getGroupByList(item) {
-    navigation.navigate("GroupInfo", {idGroup: item.id})
-    return
+  async function goToUser(idUser) {
+    try {
+      navigation.navigate ("UserInfo", {idUser:idUser})
+            
+      //navigation.navigate("UserInfo", { idUser: idUser });
+    } catch (e) {
+      console.log("error gotouser");
+      console.log(e);
+    }
   }
 
   async function loadData() {
     try {
-      setRefreshing(true);
-      // mm - inicializo los datos desde la base de datos
-      let aux = await localData.getGroupList();
-      setDataTicket([...aux]);
-      setDataListSearch([...aux]);
 
-    
+      setRefreshing(true);
+
+      let contactList =localData.getContactList() 
+      contactList = contactList.map((item, index) => ({ ...item, id: index + 1 }))
+      setDataContact ([...contactList]);
+      setDataListSearch ([...contactList])
+
     } catch (e) {
+      console.log("error en loaddata");
       console.log(e);
     }
     setRefreshing(false);
@@ -85,14 +87,16 @@ const HomeGroups = ({ navigation }) => {
         <FlatList
           ListHeaderComponent={
             <View>
+             
               <SearchBar textToSearch={searchText} />
+              
             </View>
           }
           showsVerticalScrollIndicator={false}
           data={dataListSearch}
-          keyExtractor={(item) => item.id?.toString()}
-          renderItem={({ item }) => <GroupItem item={item} onClick={getGroupByList} />}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          keyExtractor={(item, index) => `${item.contactId}-${index}`}
+          renderItem={({ item }) => <UserItem item={item} idUser={profile.idUser} onClick={goToUser} />}
+          contentContainerStyle={{ paddingBottom: 200 }} // Ajusta el valor según el espacio necesario
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
         />
@@ -101,40 +105,36 @@ const HomeGroups = ({ navigation }) => {
       {/* SlideOptions debe estar fuera del contenedor con padding para posicionamiento absoluto */}
       {options && <SlideOptions links={links} setOptions={setOptions} />}
 
-      <TouchableOpacity onPress={() => navigation.navigate("GroupList")} style={getStyles(colorScheme).floatingBtn}>
-        <MaterialCommunityIcons name="account-group" size={20} />
-      </TouchableOpacity>
+      
       {/* Add a button to open SlideOptions */}
     </View>
   );
 };
 
-const GroupItem = ({ item, onClick }) => {
+const UserItem = ({ item, onClick }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
+  
   return (
-    <TouchableOpacity onPress={() => onClick(item)} style={getStyles(colorScheme).chatContainer}>
-        <ImgAvatar id={item.id} size={45} detail={false}/>
+    <TouchableOpacity onPress={() => onClick(item.contactId)} style={getStyles(colorScheme).chatContainer}>
+      <TouchableOpacity>
+        <ImgAvatar id={item.contactId} size={45} detail={true}/>
+      </TouchableOpacity>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <Text style={[getStyles(colorScheme).listMainText, { fontWeight: "500" }]} numberOfLines={1}>
-            {ellipString(item.name, 35)}
+          <Text style={[getStyles(colorScheme).listMainText, {fontWeight:"500"}]} numberOfLines={1}>
+            {ellipString(item.name, 30)}
           </Text>
-          <Text style={[getStyles(colorScheme).listSecondText]}>
-                      {formatDateToText(item.TSCreated)}
-                    </Text>
-         
         </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          {item.groupUsers != undefined && 
-            <Text style={[getStyles(colorScheme).listSecondText, { fontWeight: "500" }]} numberOfLines={1}>
-            {item.groupUsers.length} Contactos
-          </Text>}
-        </View>
+                    <Text style={[getStyles(colorScheme).listSecondText, { fontWeight: "500" }]} numberOfLines={1}>
+                    {item.contactId}
+                  </Text>
+                </View>
       </View>
     </TouchableOpacity>
   );
 };
 
-export default HomeGroups;
+export default HomeContacts;

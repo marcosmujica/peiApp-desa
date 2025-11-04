@@ -5,23 +5,26 @@ import { Fontisto, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, tStyles, fonts } from '../common/theme';
 
 
-const SearchBar = ({ textToSearch }) => {
+const SearchBar = ({ textToSearch  = ""}) => {
     const colorScheme = useColorScheme();
 
-    const [texto, setTexto] = React.useState ("")
+    const [texto, setTexto] = React.useState("")
     
     useEffect(() => {
-            setTexto (textToSearch)
-            return () => {
-                console.log('🧹 Componente desmontado');
-                // Esto se ejecuta cuando el componente se va de pantalla
-            };
-        }, []); // <- array vacío = solo se ejecuta una vez (cuando se monta)
+        // Limpiar el texto cuando se monta el componente
+        setTexto("");
+        return () => {
+            console.log('🧹 SearchBar desmontado');
+        };
+    }, []); // <- array vacío = solo se ejecuta una vez (cuando se monta)
 
-        const setText =  (key) => {
-            setTexto (key)
-            textToSearch (key)
-         }
+    const setText = (key) => {
+        setTexto(key);
+        // Llamar a la función de callback de forma segura
+        if (typeof textToSearch === 'function') {
+            textToSearch(key);
+        }
+    }
 
     return(
         <>
@@ -36,9 +39,9 @@ const SearchBar = ({ textToSearch }) => {
                     value={texto}
                     onChangeText={ (key) => setText(key)}
                 />
-                <Fontisto name='close-a' onPress={() => {
+                {texto!="" && <Fontisto name='close-a' onPress={() => {
                     setText(""); 
-                    }}  color={ colors.gray50 } size={ 15 } />
+                    }}  color={ colors.gray50 } size={ 15 } />}
             </View>
         </>
         

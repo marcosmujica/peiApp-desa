@@ -21,6 +21,7 @@ export const db_HELPDESK = "helpdesk"
 export const db_RATING = "ticket_rating"
 export const db_TICKET_INFO = "ticket_info"
 export const db_TICKET_VIEW = "ticket_view"
+export const db_TICKET_REPEAT = "ticket_repeat"
 
 const DB_URL = "http://34.39.168.70:5984"
 const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
@@ -81,8 +82,8 @@ export async function db_getTicketRating (idTicket)
 export async function db_updateGroupUsers (id, data)
 {return await db_updateDoc (db_GROUP_TICKET, id, data)}
 
-export async function db_addTicket (data)
-{ return (await db_add (db_TICKET, null, data))}
+export async function db_addTicket (idTicket, data)
+{ return (await db_add (db_TICKET, idTicket, data))}
 
 // mm - agrega un registro de asociacion entre tickets y grupos
 export async function db_addGroupByTicket(id, data)
@@ -151,9 +152,12 @@ export async function db_getTicketViewByIdUser (idUser)
 }
 
 export async function db_getAllGroups ()
-{
-    return await db_getAll (db_GROUP_TICKET)
-}
+{ return await db_getAll (db_GROUP_TICKET)}
+
+export async function db_getAllGroupsBy ()
+{return await db_getAll (db_GROUP_BY_TICKET)}
+export async function db_getGroupsByByIdGroup (idGroup)
+{{return (await db_find (db_GROUP_BY_TICKET, {"idTicketGroup" : idGroup}))}}
 
 export async function db_updateTicketInfo (idTicket, idUser, type, data)
 { 
@@ -175,6 +179,16 @@ export async function db_getAllTicketItem (data={})
 
 export async function db_getGroupInfo (id)
 { return (await db_get (db_GROUP_TICKET, id))}
+
+export async function db_getGroupByInfo (id)
+{ return (await db_get (db_GROUP_BY_TICKET, id))}
+
+export async function db_getTicketsIdGroupBy (idGroupBy)
+{ return (await db_find (db_TICKET, {idTicketGroupBy: idGroupBy}))}
+
+export async function db_getTicketsViewIdGroupBy (idGroupBy)
+{ return (await db_find (db_TICKET_VIEW, {idGroupBy: idGroupBy}))}
+
 
 export async function db_saveProfile(profile)
 {
@@ -258,18 +272,28 @@ async function getDbByName (dbName)
     if (db.created === false)
     {
         try{
+            console.log(`[database] Creando nueva instancia de DB para: ${db.name}`);
             let aux = new DB(db.name, { couchUrl: DB_URL, username: DB_USERNAME, password: DB_PASSWORD, isRemote: db.syncSide=="REMOTE" ? true : false, indices: db.index, emitEvent: db.emitEvent})
             await aux.initDB()
             db.created = true
             db.dbLocal = aux
+            console.log(`[database] ✓ DB ${db.name} creada exitosamente`);
             return db.dbLocal
         }
         catch(e) {
-              console.log('❌ Error getDBByName:', e);
+            console.error(`[database] ❌ Error creando ${dbName}:`, e);
             db.created = false
-            return
+            db.dbLocal = undefined
+            throw e; // Re-lanzar el error para que el caller lo maneje
         };
 
+    }
+
+    // Verificar que la instancia sigue siendo válida
+    if (!db.dbLocal || !db.dbLocal.db) {
+        console.warn(`[database] Instancia de ${dbName} inválida, reinicializando...`);
+        db.created = false;
+        return await getDbByName(dbName); // Reintentar creación
     }
 
     return db.dbLocal

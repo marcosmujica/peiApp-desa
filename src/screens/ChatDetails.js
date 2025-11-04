@@ -268,7 +268,7 @@ const ChatDetails = ({ navigation, route }) => {
 
   // scroll to bottom whenever sections update
   useEffect(() => {
-    if (!sectionListRef.current) return;
+    if (!sectionListRef.current || sections.length === 0) return;
     // ensure layout/interactions finished then scroll
     InteractionManager.runAfterInteractions(() => {
       try {
@@ -276,6 +276,18 @@ const ChatDetails = ({ navigation, route }) => {
       } catch (e) {}
     });
   }, [sections.length]);
+
+  // mm - scroll al final cuando se carga el componente por primera vez
+  useEffect(() => {
+    if (chatData.length > 0 && sections.length > 0) {
+      // Esperar un poco más para que el SectionList renderice completamente
+      setTimeout(() => {
+        try {
+          scrollToBottom();
+        } catch (e) {}
+      }, 300);
+    }
+  }, [chatData.length > 0 && sections.length > 0]);
 
   const scrollToBottom = () => {
     try {
@@ -329,11 +341,11 @@ const ChatDetails = ({ navigation, route }) => {
         item.me = isMe(item.idUserFrom);
       });
 
-      // mm - ordeno descendentemente por TSSent (más reciente primero)
+      // mm - ordeno ascendentemente por TSSent (más viejos primero)
       data = data.sort((a, b) => { 
         const dateA = new Date(a.TSSent).getTime();
         const dateB = new Date(b.TSSent).getTime();
-        return dateB - dateA;
+        return dateA - dateB; // Orden ascendente (más viejos primero)
       });
 
       // mm - elimino duplicados por id
@@ -343,6 +355,15 @@ const ChatDetails = ({ navigation, route }) => {
 
       // set loaded chat data so UI can render
       setChatData(uniqueData || []);
+      
+      // mm - hacer scroll al final después de cargar datos
+      setTimeout(() => {
+        try {
+          scrollToBottom();
+        } catch (e) {
+          console.log("Error scrollToBottom en loadData:", e);
+        }
+      }, 500);
     } catch (e) {
       console.log("loadData " + JSON.stringify(e));
     }

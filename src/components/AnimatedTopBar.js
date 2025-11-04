@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, useWindowDimensions, useColorScheme, Platform, TouchableOpacity } from 'react-native';
 import Animated, { useAnimatedStyle, Extrapolation, interpolate } from 'react-native-reanimated';
-import { AntDesign, Feather, Fontisto } from '@expo/vector-icons';
+import { AntDesign, Feather, Fontisto, Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../styles/common';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../common/theme';
@@ -9,7 +9,7 @@ import { colors } from '../common/theme';
 // Crear un TouchableOpacity animado
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const AnimatedTopBar = ({ scroll, scrollOffset, uri, name, onImagePress }) => {
+const AnimatedTopBar = ({ scroll, scrollOffset, uri, name, onImagePress, onCameraPress, avatarKey }) => {
     const navigation = useNavigation();
     const mode = useColorScheme();
     const { width } = useWindowDimensions();
@@ -46,6 +46,16 @@ const AnimatedTopBar = ({ scroll, scrollOffset, uri, name, onImagePress }) => {
         }
     })
 
+    const animateCameraButton = useAnimatedStyle(() => {
+        const opacity = interpolate(scroll.value, [0, scrollOffset], [1, 0], Extrapolation.CLAMP);
+        const scale = interpolate(scroll.value, [0, scrollOffset], [1, 0], Extrapolation.CLAMP);
+        
+        return {
+            opacity, 
+            transform: [{ scale }]
+        }
+    });
+
     return(
         <>
             <View style={ [getStyles(mode).topBarHolder, { overflow: 'visible' }] }>
@@ -62,14 +72,47 @@ const AnimatedTopBar = ({ scroll, scrollOffset, uri, name, onImagePress }) => {
                 style={[getStyles(mode).avatar, animatePicture]}
             >
                 <Animated.Image
+                    key={avatarKey}
                     source={imageError || !uri ? defaultImage : { uri }}
-                    style={{ width: 120, height: 120, borderRadius: 60 }}
+                    style={{ width: 100, height: 100, borderRadius: 60 }}
                     resizeMode="cover"
                     onError={() => {
                         console.log("❌ Error al cargar imagen, mostrando imagen por defecto");
                         setImageError(true);
                     }}
                 />
+                
+                {/* Botón de cámara */}
+                {onCameraPress && (
+                    <Animated.View style={[animateCameraButton, {
+                        position: 'absolute',
+                        bottom: 5,
+                        right: 15,
+                        zIndex: 100,
+                        elevation: 10,
+                    }]}>
+                        <TouchableOpacity
+                            onPress={() => onCameraPress && onCameraPress()}
+                            style={{
+                                backgroundColor: colors.darkPrimary,
+                                borderRadius: 24,
+                                padding: 10,
+                                shadowColor: "#000",
+                                shadowOffset: {
+                                    width: 0,
+                                    height: 3,
+                                },
+                                shadowOpacity: 0.29,
+                                shadowRadius: 4.65,
+                                elevation: 10,
+                                borderWidth: 3,
+                                borderColor: mode === 'dark' ? colors.dark2 : '#fff',
+                            }}
+                        >
+                            <Ionicons name="camera" size={22} color="#fff" />
+                        </TouchableOpacity>
+                    </Animated.View>
+                )}
             </AnimatedTouchable>
         </>
     )

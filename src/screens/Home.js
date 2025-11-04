@@ -28,6 +28,7 @@ import { getProfile, isMe } from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
+import localData, { EVENT_LOCAL_LISTVIEW_UPDATED } from '../commonApp/localData';
 
 const Home = ({ navigation }) => {
   const FILTER_TICKETS = "TICKETS";
@@ -53,7 +54,7 @@ const Home = ({ navigation }) => {
   let profile = getProfile();
 
   const links = [
-    { id: 1, title: "Nuevo Grupo", onPress: () => navigation.navigate("GroupEdit", { isAddGroup: true }) },
+    { id: 1, title: "Nuevo Grupo", onPress: () => navigation.navigate("GroupList", { isAddGroup: true }) },
     { id: 2, title: "Nuevo Ticket", onPress: () => navigation.navigate("MemberList") },
     { id: 4, title: "Ajustes", onPress: () => navigation.navigate("UserProfile") },
   ];
@@ -97,6 +98,8 @@ const Home = ({ navigation }) => {
     setRefreshing(false);
   }
   async function processEvent(doc) {
+    loadData ()
+    return
     console.log("🔔 EVENT RECEIVED:", doc.table, doc._id);
     //return
     try {
@@ -216,7 +219,7 @@ const Home = ({ navigation }) => {
       newData.sort((a, b) => {
         const dateA = new Date(a.ts).getTime();
         const dateB = new Date(b.ts).getTime();
-        return dateA - dateB;
+        return dateB - dateA;
       });
 
       return newData;
@@ -245,10 +248,6 @@ const Home = ({ navigation }) => {
   }
 
   async function checkDB() {
-    //await db_openDB ("ticket")
-    //await db_openDB ("ticket_log_status")
-    //await db_openDB ("ticket_chat")
-
     db_initListener();
   }
 
@@ -258,7 +257,7 @@ const Home = ({ navigation }) => {
     checkDB();
     loadData();
 
-    const off = onEvent(EVENT_DB_CHANGE, (doc) => {
+    const off = localData.onEvent(EVENT_LOCAL_LISTVIEW_UPDATED, (doc) => {
       console.log("VOY A PROCESAR EVENTO");
       processEvent(doc);
     });
@@ -266,6 +265,7 @@ const Home = ({ navigation }) => {
     // mm - al hacer el focus recargo los datos
     const onFocus = () => {
       checkDB();
+      loadData(); // mm - recargar datos cuando la pantalla recibe focus
       // mm - comentado porque causa bucle infinito
       // La lógica de limpiar el stack de navegación puede causar problemas
       // Si realmente necesitas limpiar el stack, considera hacerlo desde 
@@ -309,13 +309,8 @@ const Home = ({ navigation }) => {
 
   async function goToTicket(idTicket, title, isSeen) {
     try {
-      console.log 
       if (!isSeen) {
-        let item = await db_getTicketViewByTicketId(idTicket);
-        if (!item) 
-        {console.log ("no se encontro ticket: " + idTicket);return};
-        item.seen = true;
-        await db_updateTicketListItem(idTicket, item);
+        localData.setTicketSeen (idTicket)
       }
       navigation.navigate("TicketDetail", { idTicket: idTicket, name: title });
     } catch (e) {
@@ -326,78 +321,25 @@ const Home = ({ navigation }) => {
 
   async function loadData() {
     try {
-      console.log("🔄 Iniciando loadData...");
       setRefreshing(true);
+      // mm - inicializo los datos desde la base de datos
+      await localData.initData()
+
+      let dataTicketBD = await localData.getTicketList();
       
-      //mm - busco desde la bd de tickets y hago join con ticketitem por si no se sicronizo bien y existen tickets en ticket y no se muestran
-      const ticketList = await db_getAllTickets();
-      const ticketView = await db_getAllTicketItem();
+      // mm - crear nuevos arrays para forzar re-render
+      const newDataTicket = dataTicketBD ? [...dataTicketBD] : [];
+      const newDataListSearch = dataTicketBD ? [...dataTicketBD] : [];
       
-      console.log("📊 Tickets obtenidos:", ticketList.length);
-      console.log("📊 TicketView obtenidos:", ticketView.length);
-      
-      const ticketViewList = new Map(ticketView.map((u) => [u.id, u]));
+      setDataTicket(newDataTicket);
+      setDataListSearch(newDataListSearch);
 
-      let dataTicketBD = [];
-
-      for (let i = 0; i < ticketList.length; i++) {
-        let aux = new TICKET_LIST_ITEM();
-        let ticket = ticketList[i];
-        aux.amount = ticket.amount;
-        aux.idUserTo = ticket.idUserCreatedBy == profile.idUser ? ticket.idUserTo : ticket.idUserFrom;
-        aux.idUserCreatedBy = ticket.idUserCreatedBy
-        aux.currency = ticket.currency;
-        aux.idTicket = ticket.id;
-        aux.isOpen = ticket.isOpen;
-        aux.title = ticket.title;
-        aux.way = ticket.way;
-
-        // mm - determino que tipo de ticket es
-        if (!isMe(ticket.idUserCreatedBy) && ticket.way == TICKET_TYPE_PAY) {
-          aux.way = TICKET_TYPE_COLLECT;
-        }
-
-        if (!isMe(ticket.idUserCreatedBy) && ticket.way == TICKET_TYPE_COLLECT) {
-          aux.way = TICKET_TYPE_PAY;
-        }
-
-        // mm - busco el detalle del listview para el ticket
-        let item = ticketViewList.get(ticket.id);
-        if (item != undefined) {
-          aux.lastMsg = item.lastMsg;
-          aux.seen = item.seen;
-          aux.status = item.status;
-          aux.statusText = item.statusText;
-          aux.ts = item.ts;
-          aux.unread = item.unread;
-          aux.dueDate = item.dueDate;
-        }
-        dataTicketBD.push(aux);
-      }
-      try {
-        // mm - ordeno descendentemente por ts (más reciente primero)
-        dataTicketBD = dataTicketBD.sort((a, b) => {
-          const dateA = new Date(a.ts).getTime();
-          const dateB = new Date(b.ts).getTime();
-          return dateB - dateA;
-        });
-      } catch (e) {
-        console.log(e);
-        console.log("Error en loaddata en sort");
-      }
-      
-      console.log("✅ Datos procesados:", dataTicketBD.length);
-      
-      setDataTicket(dataTicketBD);
-      setDataListSearch(dataTicketBD);
-
-      setRefreshing(false);
-      console.log("✅ loadData completado");
+      console.log("✅ loadData completado - tickets cargados:", newDataTicket.length);
     } catch (e) {
       console.log("error en loaddata");
       console.log(e);
-      setRefreshing(false);
     }
+    setRefreshing(false);
   }
   return (
     <View style={getStyles(colorScheme).container}>
@@ -405,6 +347,7 @@ const Home = ({ navigation }) => {
         <FlatList
           ListHeaderComponent={
             <View>
+             
               <SearchBar textToSearch={searchText} />
               <BadgeBtn
                 items={[
@@ -428,9 +371,9 @@ const Home = ({ navigation }) => {
           }
           showsVerticalScrollIndicator={false}
           data={dataListSearch}
-          keyExtractor={(item) => item.idTicket?.toString()}
+          keyExtractor={(item, index) => index.toString()}
           renderItem={({ item }) => <TicketItem item={item} idUser={profile.idUser} onClick={goToTicket} />}
-          contentContainerStyle={{ paddingBottom: 200 }} // Ajusta el valor según el espacio necesario
+          contentContainerStyle={{ paddingBottom: 80 }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
         />
@@ -454,42 +397,47 @@ const TicketItem = ({ item, idUser, onClick }) => {
   return (
     <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
       <TouchableOpacity>
-        <ImgAvatar id={item.idUserTo} size={50} />
+        <ImgAvatar id={item.idUserTo} size={45} />
       </TouchableOpacity>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <Text style={[getStyles(colorScheme).chatUsername, {fontWeight:"500"}]} numberOfLines={1}>
+          <Text style={[getStyles(colorScheme).listMainText, {fontWeight:"500"}]} numberOfLines={1}>
             {ellipString(item.title, 20)}
           </Text>
-          <Text style={[getStyles(colorScheme).chatTime, !item.seen ? getStyles(colorScheme).activeText : null]}>
+          <Text style={[getStyles(colorScheme).listSecondText, !item.seen ? getStyles(colorScheme).activeText : null]}>
             {item.statusText ? `[${ellipString(item.statusText, 10)}] ` : ""} {formatDateToText(item.dueDate)}
           </Text>
         </View>
 
         {/* Segunda línea: statusText (izquierda) - seen badge (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 4 }}>
-          <Text style={getStyles(colorScheme).chatMessage} numberOfLines={1}>
-            {item.lastMsg ? ellipString(item.lastMsg, 50) : " "}
+          <Text style={getStyles(colorScheme).listSecondText} numberOfLines={1}>
+            {item.lastMsg != "" ? ellipString(item.lastMsg, 50) : " "}
           </Text>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             {item.way == TICKET_TYPE_PAY && (
-              <Text style={[getStyles(colorScheme).chatTime, { color: colors.cancel }]}>
-                - {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15} />}
-              </Text>
+              <>
+                <Text style={[getStyles(colorScheme).listSecondText, { color: colors.cancel }]}>
+                  - {item.currency} {formatNumber(item.amount)}
+                {!item.isOpen && <Fontisto name="locked" size={15} />}
+                </Text>
+              </>
             )}
             {item.way == TICKET_TYPE_COLLECT && (
-              <Text style={[getStyles(colorScheme).chatTime]}>
-                {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15} />}
-              </Text>
+              <>
+                <Text style={[getStyles(colorScheme).listSecondText]}>
+                  {item.currency} {formatNumber(item.amount)}
+                {!item.isOpen && <Fontisto name="locked" size={15} />}
+                </Text>
+              </>
             )}
             {!item.seen && (
               <View style={getStyles(colorScheme).activeBadge}>
                 <Text style={[getStyles(colorScheme).badgeText]}></Text>
               </View>
             )}
-            <Text></Text>
           </View>
         </View>
       </View>
@@ -524,7 +472,7 @@ const ListTicket = ({ item }) => {
         </View>
 
         <View style={[tStyles.endy]}>
-          <Text style={[getStyles(colorScheme).chatTime, !item.seen ? getStyles(colorScheme).activeText : null]}>{displayTime(item.time)}</Text>
+          <Text style={[getStyles(colorScheme).subNormalText, !item.seen ? getStyles(colorScheme).activeText : null]}>{displayTime(item.time)}</Text>
           {!item.seen && (
             <View style={getStyles(colorScheme).activeBadge}>
               <Text style={getStyles(colorScheme).badgeText}>{item.unread}</Text>

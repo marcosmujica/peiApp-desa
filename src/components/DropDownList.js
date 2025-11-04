@@ -60,8 +60,14 @@ const DropDownList= ({placeholder, data, onSelected, defaultCode}) => {
       // Resetear el texto de búsqueda y mostrar todas las opciones
       setSearchText('');
       
+      // Validar que data sea un array antes de usar reduce
+      if (!Array.isArray(data)) {
+        setFilteredAreas([]);
+        return;
+      }
+      
       // Eliminar duplicados de data antes de mostrar
-      const uniqueData = (data || []).reduce((acc, current) => {
+      const uniqueData = data.reduce((acc, current) => {
         const exists = acc.find(item => item.code === current.code);
         if (!exists) {
           acc.push(current);

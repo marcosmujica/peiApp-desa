@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   MaterialIcons,
   Ionicons,
@@ -20,7 +21,6 @@ import AppContext from "../context/appContext";
 import { getStyles } from "../styles/common";
 import { BackHandler } from "react-native";
 import { useNavigationState, CommonActions, useFocusEffect } from "@react-navigation/native";
-import * as IntentLauncher from "expo-intent-launcher";
 
 const Tab = createBottomTabNavigator();
 
@@ -35,17 +35,14 @@ const MainScreen = ({ navigation }) => {
       if (currentRoute === "MainScreen") {
         // 👇 Si estamos en Home, salir de la app
         if (Platform.OS === "android") {
-          IntentLauncher.startActivityAsync("android.intent.action.MAIN", {
-            category: "android.intent.category.HOME",
-          });
-        } else {
-          alert("iOS no permite minimizar la app desde código");
+          BackHandler.exitApp();
         }
+        return true;
       } else {
         // 👇 Si no, volver a la pantalla anterior
         navigation.goBack();
+        return true;
       }
-      return true; // ✅ indica que manejamos el evento
     };
 
     const backHandler = BackHandler.addEventListener(
@@ -107,8 +104,9 @@ const MainScreen = ({ navigation }) => {
       />
       <Tab.Screen
         name="Contactos"
-        component={Screens.Calls}
+        component={Screens.HomeContacts}
         options={{
+          title: "peiApp",
           tabBarIcon: () => (
             <Ionicons
               name="person"
@@ -120,44 +118,27 @@ const MainScreen = ({ navigation }) => {
             <Ionicons name="person" size={20} color={colors.primary} />
           ),
           headerTitle: (props) => <CustomHeader {...props} />,
+            tabBarBadge: 10,
         }}
       />
-
-      <Tab.Screen
+ <Tab.Screen
         name="Repetir"
-        component={Screens.Settings}
+        component={Screens.Calls}
         options={{
+          title: "peiApp",
           tabBarIcon: () => (
-            <FontAwesome5
+            <Ionicons
               name="repeat"
               size={20}
               color={mode == "dark" ? colors.gray30 : null}
             />
           ),
           tabBarSelectedIcon: () => (
-            <FontAwesome5 name="repeat" size={20} color={colors.primary} />
+            <Ionicons name="repeat" size={20} color={colors.primary} />
           ),
           headerTitle: (props) => <CustomHeader {...props} />,
         }}
       />
-      <Tab.Screen
-        name="Info"
-        component={Screens.Settings}
-        options={{
-          tabBarIcon: () => (
-            <FontAwesome5
-              name="info"
-              size={20}
-              color={mode == "dark" ? colors.gray30 : null}
-            />
-          ),
-          tabBarSelectedIcon: () => (
-            <FontAwesome5 name="info" size={20} color={colors.primary} />
-          ),
-          headerTitle: (props) => <CustomHeader {...props} />,
-        }}
-      />
-     
     </Tab.Navigator>
   );
 };
@@ -187,10 +168,12 @@ function CustomHeader({ children }) {
 
 function CustomTabBar({ state, descriptors, navigation }) {
   const mode = useColorScheme();
+  const styles = getStyles(mode);
 
   return (
-    <View style={getStyles(mode).tabBarContainer}>
-      {state.routes.map((route, index) => {
+    <SafeAreaView edges={['bottom']} style={{ backgroundColor: styles.tabBarContainer.backgroundColor }}>
+      <View style={styles.tabBarContainer}>
+        {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label =
           options.tabBarLabel !== undefined ? options.tabBarLabel : route.name;
@@ -262,6 +245,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
         );
       })}
     </View>
+    </SafeAreaView>
   );
 }
 

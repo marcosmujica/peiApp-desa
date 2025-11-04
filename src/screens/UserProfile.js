@@ -27,6 +27,7 @@ import CountryFlag from "react-native-country-flag";
 import { useFocusEffect } from "@react-navigation/native";
 import ImgAvatar from "../components/ImgAvatar";
 import { URL_AVATAR_IMG_UPLOAD } from "../commonApp/constants";
+import { URL_FILE_DOWNLOAD, URL_FILE_SMALL_PREFIX } from "../commonApp/constants";
 import * as ImagePicker from "expo-image-picker";
 import Loading from "../components/Loading";
 import { getFileAndUpload, uploadFileToServer } from "../commonApp/attachFile";
@@ -48,28 +49,42 @@ const UserProfile = ({ navigation }) => {
 
   let profile = {};
 
+  const openViewer = (filename, mediaType) => {
+    navigation.navigate("Viewer", { filename: filename, mediaType: mediaType });
+  };
+
+  const handleAvatarPress = () => {
+    const avatarURL = `${URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + idUser + ".jpg"}`;
+    openViewer(avatarURL, "image/jpeg");
+  };
+
   async function setPhoto(media="") {
     try {
-      setLoading(true);
       if (media == "") {
         const res = await showAttachmentPicker();
         if (!res) return;
         media = res.type;
       }
+      
+      setLoading(true);
       let uploadedFile = await getFileAndUpload(idUser, true, media);
 
       if (!uploadedFile) {
-        showAlertModal ("Error", "Ocurrió un error al procesar la imagen. Por favor intente nuevamente.")
+        showAlertModal ("Error", "Ocurrió un error al procesar la imagen. Por favor intente nuevamente.");
+        setLoading(false);
         return;
       }
+      
+      // Actualizar el avatar key para forzar recarga
+      setAvatarKey(Date.now());
+      setLoading(false);
     } catch (error) {
       showAlertModal(
         "Error",
         "Ocurrió un error al procesar la imagen. Por favor intente nuevamente."
       );
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   function getProfileInfo() {
@@ -102,39 +117,55 @@ const UserProfile = ({ navigation }) => {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/*mm- aseguro que vuelve al menu de perfil por si llegue por el login*/}
 
-          <TouchableOpacity
-            onPress={() => setPhoto()}
-            style={getStyles(mode).profileHolder}
-          >
-            <View
+          <View style={getStyles(mode).profileHolder}>
+            <TouchableOpacity
+              onPress={handleAvatarPress}
               style={{
                 position: "relative",
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <ImgAvatar id={idUser} key={avatarKey} cache={false} detail={false}/>
+              <ImgAvatar id={idUser} key={avatarKey} cache={false} detail={false} size={60}/>
               <View
                 style={{
                   position: "absolute",
                   bottom: 0,
-                  right: 0,
-                  backgroundColor:
-                    mode === "dark" ? colors.gray30 : colors.gray50,
-                  borderRadius: 20,
-                  padding: 4,
+                  right: -20,
                 }}
               >
-                <Ionicons name="camera" size={16} color="#fff" />
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setPhoto();
+                  }}
+                  style={{
+                    backgroundColor: colors.darkPrimary,
+                    borderRadius: 24,
+                    padding: 10,
+                    shadowColor: "#000",
+                    shadowOffset: {
+                      width: 0,
+                      height: 3,
+                    },
+                    shadowOpacity: 0.29,
+                    shadowRadius: 4.65,
+                    elevation: 7,
+                    borderWidth: 3,
+                    borderColor: mode === 'dark' ? colors.dark2 : '#fff',
+                  }}
+                >
+                  <Ionicons name="camera" size={15} color="#fff" />
+                </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
             <View style={{ paddingLeft: 20 }}>
               <Text style={getStyles(mode).profileName}>{myName}</Text>
               <Text style={getStyles(mode).profileStatus}>
                 <CountryFlag isoCode={countryCode} /> {phone}
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
 
           <Hr size={1} color={mode == "dark" ? colors.gray75 : colors.gray5} />
 

@@ -35,10 +35,14 @@ import TicketResume from "./TicketResume";
 import Viewer from "./Viewer";
 import UserInfo from "./UserInfo";
 import HomeGroups from "./HomeGroups";
+import HomeContacts from "./HomeContacts";
+import GroupInfo from "./GroupInfo";
+import GroupByInfo from "./GroupByInfo";
+import GroupByTicketInfo from "./GroupByTicketInfo";
 
 
 export {
-    PreLogin, Viewer,UserInfo, HomeGroups, GroupList, TicketDetail, MemberList, TicketResume, Profile_AreaToWork, UserGroupInfo, NewTicket, Profile_PayMethod, Profile_Notification,  Profile_Helpdesk, UserProfile, Login, Welcome, OTPScreen, Profile_Info, Home, Updates, Calls, AddChat, NewGroup, Group, 
+    PreLogin, GroupByTicketInfo, GroupByInfo,GroupInfo, Viewer,UserInfo, HomeGroups, HomeContacts, GroupList, TicketDetail, MemberList, TicketResume, Profile_AreaToWork, UserGroupInfo, NewTicket, Profile_PayMethod, Profile_Notification,  Profile_Helpdesk, UserProfile, Login, Welcome, OTPScreen, Profile_Info, Home, Updates, Calls, AddChat, NewGroup, Group, 
     Broadcast, Profile, ChatDetails, Calling, Settings, AccountSettings, PrivacySettings, 
     HelpCenter, ViewStory, AppInfo, InviteFriend, Information, 
 }

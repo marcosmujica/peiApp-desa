@@ -18,6 +18,7 @@ const lightStyles = StyleSheet.create({
     ...fonts.regular,
     fontSize: 16,
     marginTop: 1,
+    color: colors.gray75
   },
   topBarHolder: {
     ...tStyles.spacedRow,
@@ -46,6 +47,17 @@ const lightStyles = StyleSheet.create({
     color: colors.gray50,
   },
 
+  bgStrip: {
+        borderBottomWidth:5,
+        borderBottomColor: colors.gray10,
+        borderTopColor: colors.gray10,
+        borderTopWidth: 5,
+        width: '100%',
+        marginTop: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 18,
+        backgroundColor: colors.white
+    },
   searchBar: {
     backgroundColor: colors.gray5,
     flexDirection: "row",
@@ -158,13 +170,26 @@ const lightStyles = StyleSheet.create({
   chatUsername: {
     ...fonts.medium,
     fontSize: 16,
-    marginBottom: 2,
+    marginBottom: 2
   },
   chatUsernameSmall: {
     ...fonts.regular,
     fontSize: 12,
     margin: 2,
   },
+  listMainText: {
+  ...fonts.regular,
+    fontSize: 15,
+    marginTop: 1,
+    color: colors.gray75
+  },
+  
+  listSecondText: {
+  ...fonts.regular,
+    fontSize: 11,
+    color: colors.gray75,
+  },
+
   chatMessage: {
     ...fonts.regular,
     fontSize: 13,
@@ -176,10 +201,10 @@ const lightStyles = StyleSheet.create({
     fontSize: 12,
     color: colors.gray75,
   },
-
+ 
   activeBadge: {
-    minWidth: 20,
-    minHeight: 20,
+    minWidth: 15,
+    minHeight: 15,
     paddingHorizontal: 4,
     borderRadius: 10,
     ...tStyles.centerx,
@@ -190,7 +215,7 @@ const lightStyles = StyleSheet.create({
   badgeText: {
     ...fonts.medium,
     color: colors.white,
-    fontSize: 10,
+    fontSize: 10
   },
   normalText: {
     ...fonts.medium,
@@ -200,6 +225,11 @@ const lightStyles = StyleSheet.create({
   subNormalText: {
     ...fonts.regular,
     fontSize: 11,
+    color: colors.gray75,
+  },
+  smallText: {
+    ...fonts.regular,
+    fontSize: 9,
     color: colors.gray75,
   },
   switchText: {
@@ -270,6 +300,12 @@ const lightStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 30,
   },
+  info: {
+        backgroundColor: colors.white,
+        paddingBottom: 20,
+        paddingTop: 140,
+        overflow: 'visible'
+    },
   bigText: {
     ...fonts.regular,
     color: colors.dark,
@@ -292,8 +328,8 @@ const darkStyles = StyleSheet.create({
   },
   sectionTitle: {
     ...lightStyles.sectionTitle,
-    color: colors.gray5,
-  },
+    color: colors.gray25
+    },
   topBarSecText: {
     ...lightStyles.topBarSecText,
     color: colors.gray5,
@@ -358,6 +394,18 @@ const darkStyles = StyleSheet.create({
   },
   subNormalText: {
     ...lightStyles.subNormalText,
+    color: colors.gray30,
+  },
+  listSecondText: {
+    ...lightStyles.listSecondText,
+    color: colors.gray50,
+  },
+  listMainText: {
+    ...lightStyles.listMainText,
+    color: colors.gray10,
+  },
+  smallText: {
+    ...lightStyles.smallText,
     color: colors.gray30,
   },
   chatTime: {
@@ -428,7 +476,19 @@ const darkStyles = StyleSheet.create({
     backgroundColor: colors.gray75,
     color: colors.white,
   },
+  bgStrip: {
+    ...lightStyles.bgStrip,
+    backgroundColor: colors.dark,
+    borderBottomColor: colors.gray75,
+    borderTopColor: colors.gray75,
+  },
+  info: {
+          ...lightStyles.info,
+          backgroundColor: colors.dark
+  },
+
 });
+
 
 export const getStyles = (mode) => {
   let aux = mode;

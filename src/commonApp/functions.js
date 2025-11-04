@@ -1,14 +1,34 @@
 import { TICKET } from "./dataTypes";
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  REPEAT_WEEKLY, 
+  REPEAT_BIWEEKLY, 
+  REPEAT_MONTHLY, 
+  REPEAT_BIMONTHLY,
+  REPEAT_QUATERLY,
+  REPEAT_QUADRIMONTHLY,
+  REPEAT_ANNUALY 
+} from './constants';
+
+export function getDayName(fecha = new Date())
+{
+  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  return (dias[fecha.getDay()]);
+}
+
+export function getMonthName (fecha = new Date())
+{return (fecha.toLocaleString('es-ES', { month: 'long' }))};
 
 export const getUId = () => {return uuidv4()}
 
 export const formatDateToText = (dateString) => {
-  let diff = 0
-  if (typeof dateString == "object") diff = diasEntreFechas (dateString, new Date())
-  if (typeof dateString == "string") diff = diasEntreFechas (new Date(dateString), new Date())
-  
-  return (diff == 0 ? "Hoy" : diff == 1 ? "Mañana" : diff == -1 ? "Ayer" : new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric'}).format(new Date(dateString)))
+  try{
+    let diff = 0
+    if (typeof dateString == "object") diff = diasEntreFechas (dateString, new Date())
+    if (typeof dateString == "string") diff = diasEntreFechas (new Date(dateString), new Date())
+    
+    return (diff == 0 ? "Hoy" : diff == 1 ? "Mañana" : diff == -1 ? "Ayer" : new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric'}).format(new Date(dateString)))
+  } catch (e){return }
 };
 
 export const formatDateToYYYYMMDD = (date) => {
@@ -193,4 +213,80 @@ export function deepObjectMerge(target = {}, source = {}) {
     return result;
   }
     catch (e) { console.log ("error deepObjectMerge: " + JSON.stringify(e))}
+}
+
+// mm - hago el calculo de la cantidad de veces que se repite un evento entre fechas
+export function calculateInstancesBetweenDates(code, fromDate, toDate) {
+  try {
+    // Convertir a objetos Date si son strings
+    const startDate = new Date(fromDate);
+    const endDate = new Date(toDate);
+    
+    // Validar que las fechas sean válidas
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.error('Fechas inválidas en calculateInstancesBetweenDates');
+      return 0;
+    }
+    
+    // Si la fecha final es anterior a la inicial, retornar 0
+    if (endDate < startDate) {
+      return 0;
+    }
+    
+    // Calcular la diferencia en milisegundos
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    switch (code) {
+      case REPEAT_WEEKLY:
+        // Cada 7 días
+        return Math.floor(diffDays / 7) + 1; // +1 para incluir la primera instancia
+        
+      case REPEAT_BIWEEKLY:
+        // Cada 14 días (quincenal)
+        return Math.floor(diffDays / 14) + 1;
+        
+      case REPEAT_MONTHLY:
+        // Calcular meses completos entre fechas
+        const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                          (endDate.getMonth() - startDate.getMonth());
+        return monthsDiff + 1; // +1 para incluir el mes inicial
+        
+      case REPEAT_BIMONTHLY:
+        // Cada 2 meses (bimestral)
+        const bimonthsDiff = Math.floor(
+          ((endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+          (endDate.getMonth() - startDate.getMonth())) / 2
+        );
+        return bimonthsDiff + 1;
+        
+      case REPEAT_QUATERLY:
+        // Cada 3 meses (trimestral)
+        const quartersDiff = Math.floor(
+          ((endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+          (endDate.getMonth() - startDate.getMonth())) / 3
+        );
+        return quartersDiff + 1;
+        
+      case REPEAT_QUADRIMONTHLY:
+        // Cada 4 meses (cuatrimestral)
+        const quadrimonthsDiff = Math.floor(
+          ((endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+          (endDate.getMonth() - startDate.getMonth())) / 4
+        );
+        return quadrimonthsDiff + 1;
+        
+      case REPEAT_ANNUALY:
+        // Cada año (anual)
+        const yearsDiff = endDate.getFullYear() - startDate.getFullYear();
+        return yearsDiff + 1; // +1 para incluir el año inicial
+        
+      default:
+        console.warn(`Código de repetición no reconocido: ${code}`);
+        return 1; // Retornar 1 instancia por defecto
+    }
+  } catch (error) {
+    console.error('Error en calculateInstancesBetweenDates:', error);
+    return 0;
+  }
 }

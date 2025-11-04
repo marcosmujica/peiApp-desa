@@ -112,6 +112,7 @@ const UserGroupInfo = ({ navigation, route }) => {
     let profile = getProfile();
 
     // mm- seteo los usuarios
+    ticketGroup.id= idGroup
     ticketGroup.name = groupName;
     ticketGroup.idUserCreatedBy = profile.idUser;
     ticketGroup.idUserOwner = profile.idUser;
@@ -122,7 +123,7 @@ const UserGroupInfo = ({ navigation, route }) => {
     ticketGroup.groupUsers = usersListGroup;
 
     let ticketGroupBy = new GROUP_BY_TICKETS();
-    ticketGroupBy.TSCreated = profile.idUser
+    ticketGroupBy.id = idGroupBy
     ticketGroupBy.groupUsers = usersListGroup
     ticketGroupBy.idTicketGroup = idGroup
     ticketGroupBy.idUserCreatedBy = profile.idUser;

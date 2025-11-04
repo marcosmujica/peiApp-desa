@@ -6,12 +6,13 @@ import { Fontisto, Entypo, Feather } from "@expo/vector-icons";
 import { colors, fonts, tStyles } from "../common/theme";
 import ImgAvatar from "../components/ImgAvatar";
 import { getStyles } from "../styles/home";
-import { formatDateToStringLong } from "../commonApp/functions";
-import { db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo } from "../commonApp/database";
+import { calculateInstancesBetweenDates, formatDateToStringLong, getMonthName, getDayName } from "../commonApp/functions";
+import { db_TICKET, db_openDB, db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo, db_TICKET_INFO, db_TICKET_LOG_STATUS, db_TICKET_REPEAT } from "../commonApp/database";
 import "../commonApp/global";
 import { _contacts, getContactName } from "../commonApp/contacts";
 import { _maxContactPerGroup } from "../commonApp/global";
 import AppContext from "../context/appContext";
+import { v4 as uuidv4 } from "uuid";
 import {
   TICKET_USE_TYPE_BUSINESS,
   TICKET_USE_TYPE_PERSONAL,
@@ -29,6 +30,15 @@ import {
   TICKET_INFO_TYPE_PAY,
   TICKET_INFO_TYPE_COLLECT,
   TICKET_INFO_TYPE_USE_TYPE,
+  REPEAT_NO_REPEAT,
+  REPEAT_ANNUALY,
+  REPEAT_BIMONTHLY,
+  REPEAT_BIWEEKLY,
+  REPEAT_MONTHLY, 
+  REPEAT_QUADRIMONTHLY,
+  REPEAT_QUATERLY,
+  REPEAT_BIANNUALY,
+  REPEAT_WEEKLY
 } from "../commonApp/constants";
 import { showToast } from "../common/toast";
 import { TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE } from "../commonApp/dataTypes";
@@ -50,7 +60,9 @@ const NewTicket = ({ navigation, route }) => {
   const [useType, setUseType] = React.useState(TICKET_USE_TYPE_PERSONAL);
   const [isShowDetail, setIsShowDetail] = React.useState(false);
   const [isCollectProcedure, setIsCollectProcedure] = React.useState (true)
-  
+  const [repeatOptions, setRepeatOptions] = React.useState ([])
+  const [repeatOption, setRepeatOption] = React.useState (REPEAT_NO_REPEAT)
+  const [repeatEndDate, setRepeatEndDate] = React.useState (new Date())
   let usersList = route.params ["usersList"] || []
 
   // mm - si no viene un parametro ticketDefault lo inicializo en blanco
@@ -113,6 +125,12 @@ const NewTicket = ({ navigation, route }) => {
     setDefaultCurrency(item);
   }
 
+  function selectedRepeat(repeatInfo)
+  {
+    setRepeatOption (repeatInfo.code)
+    console.log (repeatInfo.code)
+  }
+
   async function checkInfoAndSave() {
     if (ticketType == "") {
       showAlertModal("Atención", "Selecciona si el ticket es a Cobrar o a Pagar");
@@ -158,37 +176,9 @@ const NewTicket = ({ navigation, route }) => {
       // mm - para no crearle un ticket al creador del ticket
       if (idToUser != profile.idUser) {
         // mm - necesito volver a crear el ticket cada vez para que no de error
-        let ticket = new TICKET();
-
-        ticket.initialAmount = Number(ticketAmount);
-        ticket.amount = Number(ticketAmount);
-        ticket.netAmount = Number(ticketAmount - billsAmount);
-        ticket.title = ticketName;
-        ticket.isOpen = isTicketOpen;
-        ticket.currency = defaultCurrency;
-        ticket.note = ticketDesc;
-        ticket.notePrivate = ticketDescPrivate;
-        ticket.category = ticketType; // !!!! ojo que falta decir si es cobro o pago
-        ticket.way = ticketType;
-        ticket.TSDueDate = dueDate; // mm - fecha inicial de vencimiento
-        ticket.paymentInfo.paymentMethod = payMethodInfo;
-        ticket.metadata.externalReference = ticketRef;
-        ticket.idUserCreatedBy = profile.idUser;
-        ticket.idUserFrom = profile.idUser;
-        ticket.idUserTo = idToUser;
-        ticket.idTicketGroupBy = idTicketGroupBy;
-        ticket.idTicketGroup = idTicketGroup;
-        ticket.collectionProcedure = isCollectProcedure
         
-        // mm - para cada usuario del grupo le agrego un ticket con la misma info
-        let idTicket = await db_addTicket(ticket);
-
-        if (!idTicket) {
-          setLoading(false);
-          showToast.error("Existió un error al crear el ticket, por favor verifica la información y vuelve a intentar");
-          return;
-        }
-
+        let idTicket = uuidv4()
+debugger
         // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
         let ticketInfoPay = new TICKET_INFO_PAY();
         ticketInfoPay.idTicket = idTicket;
@@ -252,6 +242,38 @@ const NewTicket = ({ navigation, route }) => {
 
         // mm - creo por default el rating 0 para el ticket
         await db_addTicketRating(idTicket, 0);
+
+        let ticket = new TICKET();
+        ticket.idTicket = idTicket
+        ticket.initialAmount = Number(ticketAmount);
+        ticket.amount = Number(ticketAmount);
+        ticket.netAmount = Number(ticketAmount - billsAmount);
+        ticket.title = ticketName;
+        ticket.isOpen = isTicketOpen;
+        ticket.currency = defaultCurrency;
+        ticket.note = ticketDesc;
+        ticket.notePrivate = ticketDescPrivate;
+        ticket.way = ticketType;
+        ticket.TSDueDate = dueDate; // mm - fecha inicial de vencimiento
+        ticket.paymentInfo.paymentMethod = payMethodInfo;
+        ticket.metadata.externalReference = ticketRef;
+        ticket.idUserCreatedBy = profile.idUser;
+        ticket.idUserFrom = profile.idUser;
+        ticket.idUserTo = idToUser;
+        ticket.idTicketGroupBy = idTicketGroupBy;
+        ticket.idTicketGroup = idTicketGroup;
+        ticket.collectionProcedure = isCollectProcedure
+        
+        // mm - para cada usuario del grupo le agrego un ticket con la misma info
+        let aux = await db_addTicket(idTicket, ticket);
+
+        if (!aux) {
+          setLoading(false);
+          showToast.error("Existió un error al crear el ticket, por favor verifica la información y vuelve a intentar");
+          return;
+        }
+
+        
       }
     }
 
@@ -310,6 +332,18 @@ const NewTicket = ({ navigation, route }) => {
       console.log(e);
     }
 
+    setRepeatOptions([
+      {name:"No se repite", code: REPEAT_NO_REPEAT},
+      {name:"El " + getDayName() + " de cada semana", code: REPEAT_WEEKLY},
+      {name:"El " + getDayName() + " de cada quincena", code: REPEAT_BIWEEKLY},
+      {name:"El " + new Date().getDate() + " de cada mes", code: REPEAT_MONTHLY},
+      {name:"El " + new Date().getDate() + " de cada mes, cada 2 meses", code: REPEAT_BIMONTHLY},
+      {name:"El " + new Date().getDate() + " de cada mes, cada 3 meses", code: REPEAT_QUATERLY},
+      {name:"El " + new Date().getDate() + " de cada mes, cada 4 meses", code: REPEAT_QUADRIMONTHLY},
+      {name:"El " + new Date().getDate() + " de cada mes, cada 6 meses", code: REPEAT_BIANNUALY},
+      {name:"El " + new Date().getDate() + " de " + getMonthName() + " de cada año", code: REPEAT_ANNUALY}
+    ]);
+
     if (auxProfile.defaultCurrency && auxProfile.defaultCurrency !== "") {
       setDefaultCurrency(auxProfile.defaultCurrency);
     }
@@ -318,6 +352,13 @@ const NewTicket = ({ navigation, route }) => {
   }
 
   useEffect(() => {
+
+    // mm - abro estas bases antes de todo para que cuando se guarde no demore en abrirlas y el usuario pueda cerrar en la mitad la app
+    db_openDB (db_TICKET_INFO)
+    db_openDB (db_TICKET)
+    db_openDB (db_TICKET_REPEAT)
+    db_openDB (db_TICKET_LOG_STATUS)
+
     loadData();
 
     return () => {
@@ -337,7 +378,7 @@ const NewTicket = ({ navigation, route }) => {
       <Loading loading={loading} title="Trabajando, por favor espera..." />
       <TitleBar title="Ticket" goBack={true} onGoBack={gotoHome} />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }} style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
           <View style={[getStyles(mode).row, { padding: 10 }]}>
             <View
               style={{
@@ -365,7 +406,7 @@ const NewTicket = ({ navigation, route }) => {
               contentContainerStyle={{ paddingHorizontal: 15 }}
             />
           </View>
-          <View style={styles.row}>
+          <View style={getStyles(mode).row}>
             <BadgeBtn
               items={[
                 {
@@ -390,7 +431,7 @@ const NewTicket = ({ navigation, route }) => {
               idActive={useType}
             />
           </View>
-          {ticketType == TICKET_TYPE_PAY && <View style={styles.row}>
+          {ticketType == TICKET_TYPE_PAY && <View style={getStyles(mode).row}>
             <BadgeBtn
               items={[
                 {
@@ -416,7 +457,7 @@ const NewTicket = ({ navigation, route }) => {
             />
           </View>}
 
-          <View style={[styles.container, { flex: 1 }]}>
+          <View style={[getStyles(mode).container, { flex: 1 }]}>
             <View style={{ padding: 20 }}>
               <Text style={getStyles(mode).sectionTitle}>Título</Text>
               <View style={getStyles(mode).searchBar}>
@@ -452,31 +493,42 @@ const NewTicket = ({ navigation, route }) => {
                 </View>
               )}
               <View>
-                <View style={styles.row}>
+                <View style={getStyles(mode).row}>
                   <Text style={getStyles(mode).normalText}>Ya cobre/pagué el ticket</Text>
                   <Switch value={!isTicketOpen} onValueChange={toggleTicketOpen} trackColor={{ false: "#767577", true: "#b3b3b3ff" }} thumbColor={isTicketOpen ? "#f4f3f4" : "#aafdc2ff"} />
                 </View>
               </View>
               {/* SI ES TIPO COBRAR*/}
-              
+              <Hr />
+
+              <View style={{ paddingVertical: 20 }}>
+                    <Text style={getStyles(mode).sectionTitle}>
+                      Repetir Ticket
+                    </Text>
+                    <DropDownList data={repeatOptions} onSelected={selectedRepeat} defaultCode={REPEAT_NO_REPEAT}/>
+                    {repeatOption != REPEAT_NO_REPEAT && <View style={{ padding: 10 }}>
+                   <DateBtn text={"Repetir hasta" } onDateSelected={setRepeatEndDate} />
+                  <Text style={[getStyles(mode).sectionTitle, {paddingTop:10}]}>Este ticket se repetirá {calculateInstancesBetweenDates (repeatOption, new Date(), repeatEndDate) } veces</Text>
+                </View>}
+                </View>
               <Hr />
               <View style={{ padding: 20 }}></View>
 
-              {!isShowDetail && (
-                <TouchableOpacity onPress={() => setIsShowDetail(!isShowDetail)}>
-                  <Text style={getStyles(mode).sectionTitle}>
-                    <Fontisto name="angle-dobule-down" /> Ver más (cuanto más datos ingreses mejores resultados obtendrás)
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {isShowDetail && (
-                <TouchableOpacity onPress={() => setIsShowDetail(!isShowDetail)}>
-                  <Text style={getStyles(mode).sectionTitle}>
-                    <Fontisto name="angle-dobule-up" /> Ocultar
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                {!isShowDetail && (
+                  <TouchableOpacity onPress={() => setIsShowDetail(!isShowDetail)}>
+                    <Text style={getStyles(mode).sectionTitle}>
+                      <Fontisto name="angle-dobule-down" /> Ver más (cuanto más datos ingreses mejores resultados obtendrás)
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {isShowDetail && (
+                  <TouchableOpacity onPress={() => setIsShowDetail(!isShowDetail)}>
+                    <Text style={getStyles(mode).sectionTitle}>
+                      <Fontisto name="angle-dobule-up" /> Ocultar
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             {isShowDetail && (
               <View style={{ padding: 10 }}>
                 <View style={{ padding: 10 }}>
@@ -514,6 +566,8 @@ const NewTicket = ({ navigation, route }) => {
                   </View>
                 </View>
                 <View style={{ padding: 10 }}>
+                    <Text style={[getStyles(mode).sectionTitle, {paddingBottom:10}]}>Vencimiento del Ticket</Text>
+                
                   <DateBtn text={"Vence en " + diasEntreFechas(dueDate) + " días"} onDateSelected={OnSelectedDueDate} />
                 </View>
 
@@ -575,7 +629,7 @@ const NewTicket = ({ navigation, route }) => {
                   </View>
                   <Hr/>
                   <View style={{ paddingTop: 0, paddingBottom:30 }}>
-                    <View style={styles.row}>
+                    <View style={getStyles(mode).row}>
                       <Text style={getStyles(mode).sectionTitle}>Ayúdame con este ticket</Text>
                       <Switch
                         value={isCollectProcedure}
@@ -584,7 +638,7 @@ const NewTicket = ({ navigation, route }) => {
                         thumbColor={isCollectProcedure ? "#aafdc2ff" : "#f4f3f4"}
                         />
                     </View>
-                    <View style={[styles.row, {padding:0, paddingHorizontal:10}]}>
+                    <View style={[getStyles(mode).row, {padding:0, paddingHorizontal:10}]}>
                       <Text style={getStyles(mode).subNormalText}>Usar un procedimiento para recordar el pago o cobro de este ticket</Text>
                     </View>
                   </View>
@@ -625,7 +679,7 @@ const SelectedItem = ({ removeContactFromList, item, profile }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles1 = StyleSheet.create({
   contenedor: {
     flexDirection: "row", // 📌 Esto alinea horizontalmente
     alignItems: "center", // 📌 Centra verticalmente

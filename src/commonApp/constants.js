@@ -99,6 +99,15 @@ export const TICKET_USE_TYPE_PERSONAL = "personal"
 export const TICKET_USE_TYPE_BUSINESS = "business"
 export const TICKET_USE_TYPE_SHARED = "shared"
 
+export const REPEAT_NO_REPEAT = "NO_REPEAT"
+export const REPEAT_WEEKLY = "WEEKLY"
+export const REPEAT_BIWEEKLY = "BIWEEKLY"
+export const REPEAT_MONTHLY = "MONTHLY"
+export const REPEAT_BIMONTHLY = "BIMONTHLY"
+export const REPEAT_QUATERLY = "QUATERLY"
+export const REPEAT_QUADRIMONTHLY = "QUADRIMONTHLY"
+export const REPEAT_ANNUALY= "ANNUALY"
+
 export const EXPENSES_CATEGORY = [
   {"code": "VI", "name": "Vivienda", "purchaseType": "needed"},
   {"code": "AL", "name": "Alimentación", "purchaseType": "needed"},

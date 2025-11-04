@@ -17,12 +17,12 @@ import DropDownList from "../components/DropDownList";
 import { duplicateTicket, formatDateToText, formatDateToStringLong, formatNumber, diasEntreFechas } from "../commonApp/functions";
 import Loading from "../components/Loading";
 import { getFileAndUpload, uploadFileToServer } from "../commonApp/attachFile";
-import { getProfile } from "../commonApp/profile";
+import { isMe, getProfile } from "../commonApp/profile";
 import BadgeBtn from "../components/BadgeBtn";
 import DateBtn from "../components/DateBtn";
 import { TICKET, TICKET_LOG_DETAIL_STATUS } from "../commonApp/dataTypes";
 import moment from "moment";
-import { db_getTicketRating, db_getTicketLog, db_addTicketLogStatus, db_getTicket, db_updateTicket, db_updateTicketRating, db_getTicketLogByStatus, db_getTicketInfo, db_updateTicketInfo, db_addTicketRating } from "../commonApp/database";
+import { db_getTicketRating, db_getTicketLog, db_addTicketLogStatus, db_getTicket, db_updateTicket, db_updateTicketRating, db_getTicketLogByStatus, db_getTicketInfo, db_updateTicketInfo, db_addTicketRating, db_getGroupInfo, db_getGroupByInfo } from "../commonApp/database";
 import {
   TICKET_TYPE_COLLECT,
   TICKET_TYPE_PAY,
@@ -57,11 +57,13 @@ const TicketInfo = ({ idTicket }) => {
   const [ticket, setTicket] = React.useState(new TICKET()); // mm - lo inicializo como ticket para no tener problema en el render al ser vacio
   const [payType, setPayType] = React.useState(); // mm - si es una compra planeada o impulsiva
   const [useType, setUseType] = React.useState(); // mm - si es personal o para el negocio
+  const [groupName, setGroupName] = React.useState(""); // mm - si es personal o para el negocio
+  const [groupByName, setGroupByName] = React.useState(""); // mm - si es personal o para el negocio
   const [expensesCategory, setExpensesCategory] = React.useState(); // mm - si es personal o para el negocio
   const { showAlertModal } = React.useContext(AppContext);
   const [isLoading, setLoading] = React.useState("");
   const [ticketNote, setTicketNote] = React.useState(""); // mm - lo dejo sin estado al principio para que el usuario se obligue a marcarlo
-  const [ticketPay, setPay] = React.useState(0);
+  const [ticketPay, setPay] = React.useState("");
   const [rating, setRating] = React.useState(0);
   const [dueDate, setDueDate] = React.useState(new Date());
   const [initialDueDate, setInitialDueDate] = React.useState(new Date());
@@ -132,7 +134,7 @@ const TicketInfo = ({ idTicket }) => {
       return;
     }
 
-    if (ticket.status == TICKET_DETAIL_PAY_STATUS && (ticketPay == "" || ticketPay == "0" )) {
+    if (ticket.status == TICKET_DETAIL_PAY_STATUS && (isNaN (Number(ticketPay)) || ticketPay == "" || ticketPay == "0" )) {
       showAlertModal("Atención", "Por favor ingresa el importe pagado, asegurate de que no exceda el total del ticket.", {
         ok: true,
       });
@@ -319,6 +321,17 @@ const TicketInfo = ({ idTicket }) => {
         aux = ticketInfo.find((item) => item.type == TICKET_INFO_TYPE_USE_TYPE && item.idUser == profile.idUser);
         setUseType(aux ==undefined ? "" : aux.info.useType);
       }
+
+      // mm - si tiene grupo asociado y lo creo el usuario 
+      if (isMe (ticketAux.idUserCreatedBy) && ticketAux.idTicketGroup !="")
+      {
+        setRefreshtitle ("Buscando info de grupos...")
+        let groupInfo = await db_getGroupInfo(ticketAux.idTicketGroup);
+        setGroupName (groupInfo.name)
+        let groupByInfo = await db_getGroupByInfo(ticketAux.idTicketGroupBy);
+        setGroupByName (groupByInfo.name)
+      }
+      
     } catch (e) {
       showAlertModal("Error", "Existio un error al intentar recuperar el ticket. Por favor consulta más tarde.");
       console.log("Error loaddata: " + JSON.stringify(e));console.log(e);
@@ -387,6 +400,7 @@ const TicketInfo = ({ idTicket }) => {
           </Text>
         </View>
       )}
+      
       <View
         style={{
           flexDirection: "row",
@@ -415,6 +429,17 @@ const TicketInfo = ({ idTicket }) => {
           </Text>
         </View>
       </View>
+      {/* si el usuario creo el ticket y esta asociado a un grupo*/}
+      {isMe (ticket.idUserCreatedBy) && ticket.idTicketGroup != "" && <View
+        style={{
+          flexDirection: "row",
+          alignItems: "left",
+          marginVertical: 10,
+          
+        }}>
+        <View style={{paddingRight:20}}><ImgAvatar id={ticket.idTicketGroup} detail={false} size={40}/><Text style={getStyles(mode).subNormalText}>{ellipString(groupName, 10)}</Text></View>
+        <View style={{paddingRight:20}}><ImgAvatar id={ticket.idTicketGroupBy} detail={false} size={40}/><Text style={getStyles(mode).subNormalText}>{ellipString(groupByName, 10)}</Text></View>
+        </View>}
       {ticket.way == TICKET_TYPE_PAY && <View></View>}
       <View
         style={{

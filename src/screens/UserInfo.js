@@ -199,7 +199,7 @@ const TicketItem = ({ item, onClick, mode, ellipString }) => {
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <Text style={homeStyles.chatUsername} numberOfLines={1}>
+          <Text style={homeStyles.listMainText} numberOfLines={1}>
             {ellipString(item.title, 20)}
           </Text>
           <Text style={[homeStyles.chatTime]}>
@@ -209,20 +209,34 @@ const TicketItem = ({ item, onClick, mode, ellipString }) => {
 
         {/* Segunda línea: statusText (izquierda) - seen badge (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 4 }}>
-          <Text style={homeStyles.chatMessage} numberOfLines={1}>
-            {[1, 2, 3, 4, 5].map((star) => (<Ionicons name={item.rating >= star ? "star" : ""} size={10} color={item.rating >= star ? colors.darkPrimary2 : colors.darkPrimary} style={{ marginHorizontal: 2 }} />))}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons 
+                key={`star-${star}`}
+                name={item.rating >= star ? "star" : "star-outline"} 
+                size={10} 
+                color={item.rating >= star ? colors.darkPrimary2 : colors.darkPrimary} 
+                style={{ marginHorizontal: 2 }} 
+              />
+            ))}
+          </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             {item.way == TICKET_TYPE_PAY && (
-              <Text style={[homeStyles.chatTime, { color: "#c53131ff" }]}>
-                - {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15} />}
-              </Text>
+              <React.Fragment key="pay">
+                <Text style={[homeStyles.chatTime, { color: "#c53131ff" }]}>
+                  - {item.currency} {formatNumber(item.amount)}
+                {!item.isOpen && <Fontisto name="locked" size={15} key="lock" />}
+                </Text>
+              </React.Fragment>
             )}
             {item.way == TICKET_TYPE_COLLECT && (
-              <Text style={[homeStyles.chatTime]}>
-                {item.currency} {formatNumber(item.amount)} {!item.isOpen && <Fontisto name="locked" size={15} />}
-              </Text>
+              <React.Fragment key="collect">
+                <Text style={[homeStyles.chatTime]}>
+                  {item.currency} {formatNumber(item.amount)}
+                  {!item.isOpen && <Fontisto name="locked" size={15} key="lock" />}
+                </Text>
+              </React.Fragment>
             )}
             
           </View>

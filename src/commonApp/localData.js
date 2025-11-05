@@ -14,8 +14,8 @@ import {
   db_openDB,
   db_TICKET_VIEW
 } from "../commonApp/database";
-import  {TICKET_LIST_ITEM } from "./dataTypes"
-import  {TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS,TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "./constants"
+import  {TICKET_LIST_ITEM,  } from "./dataTypes"
+import  {LIST_VIEW_CHANGE_SEEN,LIST_VIEW_CHANGE_LOG_STATUS,LIST_VIEW_CHANGE_CHAT,LIST_VIEW_CHANGE_INFO,LIST_VIEW_CHANGE_TICKET , TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS,TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "./constants"
 import { getProfile, isMe } from "./profile";
 import {getUniqueValues } from "./functions";
 import {getContactName} from "./contacts";
@@ -46,17 +46,17 @@ class LocalData {
             this.lastUpdate = null;
 
             // mm - si estan en false los genero para evitar haacerlo si no los uso
-            this.readyGroups = false
-            this.readyContacts = false
-    
+            this.readyGroups = false;
+            this.readyContacts = false;
             
-            
+            (async () => {
+                await this.initData()
+            })()
             LocalData.instance = this;
         }
 
         return LocalData.instance;
     }
-
 
     async getTicketList()
     { return this.ticketViews }
@@ -118,26 +118,28 @@ class LocalData {
         return this.contactList
     }
 
-    async setTicketSeen (idTicket)
+    async setTicketSeen (idTicket, seen, changeSource = "")
     {
-        const ticket = this.ticketViews.find(t => t.idTicket === idTicket);
-        if (ticket) {
+        const index = this.ticketViews.findIndex(t => t.idTicket === idTicket);
 
-            ticket.seen = true;
-            ticket.ts = new Date()
+        if (index == -1) return
 
-            await db_updateTicketListItem (idTicket, ticket)
-        }
+        this.ticketViews[index].seen = seen
+        this.ticketViews[index].ts = new Date()
+        this.ticketViews[index].changeSource = changeSource
+
+        await db_updateTicketListItem (idTicket, this.ticketViews[index])
+        this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, this.ticketViews[index]);
     }
 
     async initData ()
     {
+        await db_openDB(db_TICKET_VIEW);
+
         if (!this.isReady )
         {
             try {
                 // mm - asegurar que la base de datos esté inicializada antes de consultar
-                await db_openDB(db_TICKET_VIEW);
-                
                 this.ticketViews = await db_getAllTicketItem();
                 
                 if (!this.ticketViews || !Array.isArray(this.ticketViews)) {
@@ -165,17 +167,18 @@ class LocalData {
                 });
                 
                 this.isReady = true;
+
+                  // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
+                this._dbChangeListener = onEvent(EVENT_DB_CHANGE, (payload) => {
+                this._handleDBChange(payload);
+                })
             } catch (e) {
                 console.log("❌ Error en initData:", e);
                 this.ticketViews = [];
                 this.isReady = false;
             }
 
-            // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
-             // Escuchar cambios en la base de datos
-            this._dbChangeListener = onEvent(EVENT_DB_CHANGE, (payload) => {
-                this._handleDBChange(payload);
-            });
+          
         }
     }
 
@@ -248,7 +251,10 @@ class LocalData {
         } else {
             // No existe en memoria, verificar si existe en BD primero
             const existsInDB = await db_getTicketViewByTicketId(data.idTicket);
-            
+
+            item.changeSource = LIST_VIEW_CHANGE_TICKET
+            item.seen = isMe (item.idUserCreatedBy)
+
             if (existsInDB) {
                 // Ya existe en BD, solo actualizar
                 await db_updateTicketListItem(item.idTicket, item);
@@ -313,6 +319,9 @@ class LocalData {
         try{
             const index = this.ticketViews.findIndex(t => t.idTicket === doc.idTicket);
             this.ticketViews[index].lastMsg = doc.message;
+            this.ticketViews[index].changeSource = LIST_VIEW_CHANGE_CHAT
+            // mm - si no lo mande yo lo marco como no visto al view
+            this.ticketViews[index].seen = isMe (this.idUserFrom)
         }
         catch (e){console.log ("error updateiticketchat", e)}
         this.lastUpdate = new Date().toISOString();
@@ -346,10 +355,10 @@ class LocalData {
         
         // mm - si lo envie yo no lo marco
         this.ticketViews[index].seen = isMe (data.idUserFrom)
+        this.ticketViews[index].changeSource = LIST_VIEW_CHANGE_LOG_STATUS
         
         // mm - actualizar solo el item específico en el estado
         await db_updateTicketListItem(data.idTicket, this.ticketViews[index]);
-
         this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, data);
     }
     async _updateTicketInfo(data) {
@@ -379,14 +388,14 @@ class LocalData {
         
         // mm - si lo envie yo no lo marco
         this.ticketViews[index].seen = isMe (data.idUserFrom)
-        
+        this.ticketViews[index].changeSource = LIST_VIEW_CHANGE_INFO
+
         // mm - actualizar solo el item específico en el estado
         await db_updateTicketListItem(data.idTicket, this.ticketViews[index]);
 
         this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, data);
     }
-
-
+    
     // Métodos públicos para emitir eventos propios
     emitEvent(eventName, payload) {
         console.log("LocalData: Emitting event", eventName, payload);
@@ -472,107 +481,6 @@ class LocalData {
         this._emitter.removeAllListeners();
     }
 
-    async processEvent(doc) {
-        console.log("🔔 EVENT RECEIVED:", doc.table, doc._id);
-        //return
-        try {
-          if (doc.table == db_TICKET_CHAT) {
-            let item = await db_getTicketViewByTicketId(doc.data.idTicket);
-    
-            if (item.length == 0) return;
-    
-            item.lastMsg = doc.data.message;
-    
-            if (doc.data.mediaType == "image") item.lastMsg = ">> Foto";
-            if (doc.data.mediaType == "file") item.lastMsg = ">> Archivo";
-    
-            let aux2 = TICKET_DETAIL_STATUS.find((aux) => aux.code == doc.data.idStatus);
-    
-            item.ts = new Date();
-            // mm - si lo envie yo no lo marco
-            if (doc.data.idUserFrom != profile.idUser) {
-              item.seen = false;
-            }
-    
-            // mm - NO actualizar la BD aquí, solo actualizar el estado UI
-            await db_updateTicketListItem (item.idTicket, item)
-    
-            // mm - actualizar solo el item específico en el estado
-            updateTicketInList(item.idTicket, item);
-          }
-          if (doc.table == db_TICKET_LOG_STATUS) {
-            let item = await db_getTicketViewByTicketId(doc.data.idTicket);
-    
-            if (!item) return;
-    
-            item.status = doc.data.idStatus;
-            let aux2 = TICKET_DETAIL_STATUS.find((aux) => aux.code == doc.data.idStatus);
-            item.statusText = aux2.name;
-    
-            // mm - le cambio la fecha de vencimiento
-            if (doc.data.idStatus == TICKET_DETAIL_CHANGE_DUE_DATE_STATUS) {
-              item.dueDate = doc.data.data.dueDate;
-            }
-    
-            if (doc.data.idStatus == TICKET_DETAIL_CLOSED_STATUS) {
-              item.isOpen = false
-            }
-    
-            // mm - si lo envie yo no lo marco
-            item.ts = new Date();
-    
-            if (doc.data.idUserFrom != profile.idUser) {
-              item.seen = false;
-            }
-    
-            // mm - NO actualizar la BD aquí, solo actualizar el estado UI
-            await db_updateTicketListItem (item.idTicket, item)
-    
-            // mm - actualizar solo el item específico en el estado
-            updateTicketInList(item.idTicket, item);
-          }
-          if (doc.table == db_TICKET) {
-            let item = new TICKET_LIST_ITEM();
-            let data = doc.data;
-            item.idTicket = doc._id;
-            item.idGroup = item.idTicketGroup
-            item.idGroupBy = item.idTicketGroupBy
-            item.idUserTo = data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom;
-            item.idUserCreatedBy = data.idUserCreatedBy
-            item.currency = doc.data.currency;
-            item.title = data.title;
-            item.isOpen = data.isOpen;
-            item.amount = data.amount;
-            item.way = data.way; // mm - por default el way es el del ticket
-    
-            // mm - determino que tipo de ticket es
-            if (!isMe(data.idUserCreatedBy) && data.way == TICKET_TYPE_PAY) {
-              item.way = TICKET_TYPE_COLLECT;
-            }
-            if (!isMe(data.idUserCreatedBy) && data.way == TICKET_TYPE_COLLECT) {
-              item.way = TICKET_TYPE_PAY;
-            }
-    
-            item.ts = new Date();
-            item.dueDate = data.TSDueDate;
-    
-            // mm - determino si existe antes por si hubo un error previamente
-            let aux = await db_getTicketViewByTicketId(doc._id);
-    
-            if (!aux) {
-              // mm- agrego si no estaba previamente en ticket_view
-              await db_addTicketListItem(item.idTicket, item);
-            }
-    
-            // mm - actualizar solo el item específico en el estado
-            updateTicketInList(item.idTicket, item);
-          }
-        } catch (e) {
-          console.log(e);
-          console.log("❌ error processEvent");
-        }
-      }
-    
 }
 
 // Crear y exportar una única instancia

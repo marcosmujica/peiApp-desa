@@ -207,10 +207,9 @@ const GroupInfo = ({ navigation, route }) => {
     )
 }
 
-const GroupItem = ({ item, onClick, mode}) => {
+const GroupItem = ({ item, onClick}) => {
+   const mode = useColorScheme();
   
-  const styles = getStyles(mode);
-  const homeStyles = getHomeStyles(mode);
   return (
      <TouchableOpacity onPress={() => onClick(item.id)} style={{flexDirection: "row",
     alignItems: "center",

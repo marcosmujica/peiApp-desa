@@ -3,6 +3,7 @@ import {
   Platform, Switch,StyleSheet, TextInput, View, Text, Modal, TouchableOpacity,
   useColorScheme, Keyboard, findNodeHandle} from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppContext from "../context/appContext";
 import { tStyles, colors, fonts } from "../common/theme";
 import { getStyles } from "../styles/home";
@@ -31,6 +32,7 @@ import {
 const TicketEdit = ({ idTicket }) => {
   const navigation = useNavigation();
   const mode = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   const [ticket, setTicket] = React.useState(new TICKET()); // mm - lo inicializo como ticket para no tener problema en el render al ser vacio
   const { showAlertModal } = React.useContext(AppContext);
@@ -166,8 +168,11 @@ const TicketEdit = ({ idTicket }) => {
   return (
     <KeyboardAwareScrollView
       ref={scrollRef}
-      // Cuando el teclado está visible reducimos el paddingBottom para eliminar el hueco.
-      contentContainerStyle={{ padding: 10, paddingBottom: keyboardHeight > 0 ? 20 : 100 }}
+      // Ajustamos el paddingBottom para considerar el área segura inferior + espacio extra
+      contentContainerStyle={{ 
+        padding: 10, 
+        paddingBottom: keyboardHeight > 0 ? 20 : Math.max(insets.bottom + 20, 100)
+      }}
       keyboardShouldPersistTaps="handled"
       enableOnAndroid={true}
       enableAutomaticScroll={true}
@@ -292,7 +297,10 @@ const TicketEdit = ({ idTicket }) => {
               />
             </View>
           </View>
-          <View style={{ paddingHorizontal: 15, marginBottom: 15 }}>
+          <View style={{ 
+            paddingHorizontal: 15, 
+            marginBottom: Math.max(insets.bottom + 15, 30)
+          }}>
             <TouchableOpacity
               style={styles.agreeBtn}
               onPress={() => checkInfoAndSave()}

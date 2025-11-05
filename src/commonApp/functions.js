@@ -70,7 +70,7 @@ export function getUniqueValues(arr, campo) {
 }
 
 export const formatNumber = (num) => {
-  if (num == 0) return ("0")
+  if (num == 0 || num == undefined) return ("0")
   try{
     const parts = num.toString().split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');

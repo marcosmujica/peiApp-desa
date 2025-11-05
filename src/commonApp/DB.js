@@ -137,6 +137,8 @@ export class DB {
   async _initSQLite() {
     try {
       // Si ya hay una conexión, no intentar abrir de nuevo
+      const startTime = Date.now();
+// Tu operación aquí
       if (this.db) {
         console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
         try {
@@ -157,9 +159,23 @@ export class DB {
       
       console.log(`[DB:${this.dbName}] Conexión SQLite establecida`);
       
-      // Configurar SQLite
-      await this.db.runAsync("PRAGMA journal_mode = WAL");
-      await this.db.runAsync("PRAGMA foreign_keys = ON");
+      // Configurar SQLite con parámetros optimizados para móviles en una sola consulta
+      const configStartTime = performance.now();
+      
+      await this.db.execAsync(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA cache_size = -2000;
+        PRAGMA temp_store = MEMORY;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA busy_timeout = 30000;
+        PRAGMA wal_autocheckpoint = 1000;
+        PRAGMA page_size = 4096;
+        PRAGMA optimize;
+      `);
+      
+      const configEndTime = performance.now();
+      
       
       // Descomentar solo si necesitas resetear las tablas
        //await this.db.execAsync('DROP TABLE IF EXISTS documents');
@@ -176,11 +192,7 @@ export class DB {
         );
       `);
       
-      console.log(`[DB:${this.dbName}] Tabla 'documents' creada/verificada`);
       
-      // Verificar documentos existentes
-      const existingDocs = await this.db.getAllAsync("SELECT COUNT(*) as count FROM documents");
-      console.log(`[DB:${this.dbName}] Documentos existentes: ${existingDocs[0].count}`);
 /*
       // Crear índices solicitados
       for (const index of this.indices) {
@@ -198,7 +210,6 @@ export class DB {
           value TEXT
         );
       `);
-      
       console.log(`[DB:${this.dbName}] ✓ SQLite inicializado correctamente`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error inicializando SQLite:`, error);
@@ -310,8 +321,6 @@ export class DB {
       };
       
       // Guardar localmente
-      console.log ("put")
-      console.log (updatedDoc)
       await this._putLocal(updatedDoc);
       
       //console.log(`[DB:${this.dbName}] ✓ Documento ${id} actualizado localmente (updatedAt: ${dataWithTimestamp.updatedAt})`);
@@ -508,7 +517,6 @@ export class DB {
             dataJson
           ]
         );
-        
         if (this.emitEvent && shouldEmitEvent)
         {
           let event = new DB_EVENT ()
@@ -1067,14 +1075,14 @@ export class DB {
     if (!this.isWeb) {
       try {
         // Hacer una consulta simple para verificar que la conexión funciona
-        await this.db.getAllAsync('SELECT 1');
+        //await this.db.getAllAsync('SELECT 1');
       } catch (error) {
         console.error(`[DB:${this.dbName}] Error en validación SQLite:`, error);
         // Intentar reabrir la base de datos una vez más
         try {
           console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
           this.db = await SQLite.openDatabaseAsync(this.dbName);
-          await this.db.getAllAsync('SELECT 1'); // Verificar de nuevo
+          //await this.db.getAllAsync('SELECT 1'); // Verificar de nuevo
           console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
         } catch (retryError) {
           throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error.message}`);

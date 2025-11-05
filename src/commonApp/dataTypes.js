@@ -316,6 +316,7 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
     this.seen = false
     this.ts = new Date()
     this.unread = 0
+    this.changeSource = "" // mm - id desde donde se hizo el ultimo cambio
     this.deleted = false
     this.dueDate = new Date()
     this.rating = 0

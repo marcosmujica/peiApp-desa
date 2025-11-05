@@ -118,7 +118,7 @@ const TicketDetail = ({ navigation, route }) => {
 
   return (
     <SafeAreaView
-      edges={["top", "right", "left"]}
+      edges={["top", "right", "left", "bottom"]}
       style={getStyles(mode).container}
     >
       <Loading loading={loading} title="Buscando..." />

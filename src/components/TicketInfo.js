@@ -713,7 +713,7 @@ const TicketInfo = ({ idTicket }) => {
                     alignItems: "left",
                   }}
                   onPress={() => setIsShowMenuList(true)}>
-                  <Text style={[getStyles(mode).sectionTitle, { marginLeft: 15, fontWeight: "bold" }]}>
+                  <Text style={[getStyles(mode).sectionTitle, { marginLeft: 15, fontWeight: "bold", color: colors.gray75}]}>
                     <Feather name="arrow-left" size={15} /> Volver al menu de estados
                   </Text>
                 </TouchableOpacity>

@@ -432,7 +432,7 @@ const ChatDetails = ({ navigation, route }) => {
           idAvatar={idUserTo}
         />
         {/* debug view removed */}
-        <Loading loading={isLoading} />
+        <Loading loading={isLoading} title="Trabajando, por favor espera"/>
 
         <SectionList
           ref={sectionListRef}

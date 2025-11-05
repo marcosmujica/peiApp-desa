@@ -264,8 +264,8 @@ const Home = ({ navigation }) => {
 
     // mm - al hacer el focus recargo los datos
     const onFocus = () => {
-      checkDB();
-      loadData(); // mm - recargar datos cuando la pantalla recibe focus
+      //checkDB();
+      //loadData(); // mm - recargar datos cuando la pantalla recibe focus
       // mm - comentado porque causa bucle infinito
       // La lógica de limpiar el stack de navegación puede causar problemas
       // Si realmente necesitas limpiar el stack, considera hacerlo desde 
@@ -310,7 +310,7 @@ const Home = ({ navigation }) => {
   async function goToTicket(idTicket, title, isSeen) {
     try {
       if (!isSeen) {
-        localData.setTicketSeen (idTicket)
+        localData.setTicketSeen (idTicket, true)
       }
       navigation.navigate("TicketDetail", { idTicket: idTicket, name: title });
     } catch (e) {
@@ -323,10 +323,15 @@ const Home = ({ navigation }) => {
     try {
       setRefreshing(true);
       // mm - inicializo los datos desde la base de datos
-      await localData.initData()
-
-      let dataTicketBD = await localData.getTicketList();
       
+      let dataTicketBD = await localData.getTicketList();
+                              
+      // Ordenar los tickets por timestamp (ts) de forma descendente
+      dataTicketBD.sort((a, b) => {
+        const dateA = new Date(a.ts).getTime();
+        const dateB = new Date(b.ts).getTime();
+        return dateB - dateA;
+      });
       // mm - crear nuevos arrays para forzar re-render
       const newDataTicket = dataTicketBD ? [...dataTicketBD] : [];
       const newDataListSearch = dataTicketBD ? [...dataTicketBD] : [];
@@ -402,17 +407,24 @@ const TicketItem = ({ item, idUser, onClick }) => {
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <Text style={[getStyles(colorScheme).listMainText, {fontWeight:"500"}]} numberOfLines={1}>
+          <Text style={[
+            getStyles(colorScheme).listMainText, 
+            (!item.seen && item.changeSource === 'ticket') ? {color: colors.lightPrimary} : null
+          ]} numberOfLines={1}>
             {ellipString(item.title, 20)}
           </Text>
-          <Text style={[getStyles(colorScheme).listSecondText, !item.seen ? getStyles(colorScheme).activeText : null]}>
+          <Text style={[getStyles(colorScheme).listSecondText, (!item.seen && item.changeSource === 'log_status') ? {color: colors.lightPrimary} : null]}>
             {item.statusText ? `[${ellipString(item.statusText, 10)}] ` : ""} {formatDateToText(item.dueDate)}
           </Text>
         </View>
 
         {/* Segunda línea: statusText (izquierda) - seen badge (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 4 }}>
-          <Text style={getStyles(colorScheme).listSecondText} numberOfLines={1}>
+          <Text style={[
+            getStyles(colorScheme).listSecondText,
+            (!item.seen && item.changeSource === 'chat') ? {color: colors.lightPrimary} : null
+          ]} numberOfLines={1}>
+            {item.changesource}
             {item.lastMsg != "" ? ellipString(item.lastMsg, 50) : " "}
           </Text>
 

@@ -178,7 +178,6 @@ const NewTicket = ({ navigation, route }) => {
         // mm - necesito volver a crear el ticket cada vez para que no de error
         
         let idTicket = uuidv4()
-debugger
         // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
         let ticketInfoPay = new TICKET_INFO_PAY();
         ticketInfoPay.idTicket = idTicket;

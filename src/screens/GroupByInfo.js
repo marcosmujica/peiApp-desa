@@ -4,7 +4,6 @@ import { AntDesign, Entypo, Feather, Fontisto, Ionicons, MaterialCommunityIcons,
 import Animated, { RotateInUpLeft, useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { colors, tStyles } from "../common/theme";
 import { getStyles } from "../styles/home";
-import { getStyles as getHomeStyles } from "../styles/home";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AnimatedTopBar from "../components/AnimatedTopBar";
 import ImgAvatar from "../components/ImgAvatar";
@@ -158,10 +157,10 @@ const GroupByInfo = ({ navigation, route }) => {
         onScroll={scrollHandler}
         keyboardShouldPersistTaps="handled">
         <View style={[tStyles.centery, getStyles(mode).info, { marginTop: -40 }]}>
-          <Text style={getHomeStyles(mode).sectionTitle}>{groupByInfo.name}</Text>
+          <Text style={getStyles(mode).sectionTitle}>{groupByInfo.name}</Text>
         </View>
-        <View style={ [getHomeStyles(mode).bgStrip, { paddingHorizontal: 20 }] }>
-<Text style={[getHomeStyles(mode).sectionTitle, {paddingBottom:20}]}>{groupByInfo.groupUsers.length} Contactos</Text>
+        <View style={ [getStyles(mode).bgStrip, { paddingHorizontal: 20 }] }>
+<Text style={[getStyles(mode).sectionTitle, {paddingBottom:20}]}>{groupByInfo.groupUsers.length} Contactos</Text>
           <FlatList
             horizontal={true}
             showsHorizontalScrollIndicator={false}
@@ -173,7 +172,7 @@ const GroupByInfo = ({ navigation, route }) => {
           />
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20 }}>
-          {!isSearch && <Text style={[getHomeStyles(mode).sectionTitle]}>Tickets</Text>}
+          {!isSearch && <Text style={[getStyles(mode).sectionTitle]}>Tickets</Text>}
           {isSearch ? (
             <SearchBar textToSearch={searchText} />
           ) : (
@@ -204,9 +203,8 @@ const GroupByInfo = ({ navigation, route }) => {
   );
 };
 
-const TicketItem = ({ item, onClick, mode }) => {
-  const styles = getStyles(mode);
-  const homeStyles = getHomeStyles(mode);
+const TicketItem = ({ item, onClick }) => {
+  const mode = useColorScheme();
   return (
     <TouchableOpacity onPress={() => onClick(item.id)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12 }}>
       <ImgAvatar id={item.id} detail={false} size={35} />
@@ -251,11 +249,11 @@ const UserItem = ({ item, profile }) => {
     <View>
       {item.contact != profile.idUser && (
         <TouchableOpacity>
-          <View style={[getHomeStyles(mode).linkIconHolder, { marginRight: 15 }]}>
+          <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
             <ImgAvatar id={item.id} detail={true} size={40} />
           </View>
 
-          <Text style={getHomeStyles(mode).smallText}>{ellipString(item.name, 8)}</Text>
+          <Text style={getStyles(mode).smallText}>{ellipString(item.name, 8)}</Text>
         </TouchableOpacity>
       )}
     </View>

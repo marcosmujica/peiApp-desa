@@ -51,12 +51,20 @@ const lightStyles = StyleSheet.create({
         borderBottomWidth:5,
         borderBottomColor: colors.gray10,
         borderTopColor: colors.gray10,
-        borderTopWidth: 5,
+        borderTopWidth: 10,
         width: '100%',
         marginTop: 10,
         paddingHorizontal: 15,
         paddingVertical: 18,
-        backgroundColor: colors.white
+        backgroundColor: colors.white,
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: -2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
   searchBar: {
     backgroundColor: colors.gray5,
@@ -402,7 +410,7 @@ const darkStyles = StyleSheet.create({
   },
   listMainText: {
     ...lightStyles.listMainText,
-    color: colors.gray10,
+    color: colors.gray30,
   },
   smallText: {
     ...lightStyles.smallText,

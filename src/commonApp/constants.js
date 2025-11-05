@@ -31,6 +31,12 @@ export const TICKET_FRECUENCY = [
   {code: "annual", name: "Anualmente"}
 ]
 
+export const LIST_VIEW_CHANGE_SEEN = "seen"
+export const LIST_VIEW_CHANGE_LOG_STATUS = "log_status"
+export const LIST_VIEW_CHANGE_CHAT = "chat"
+export const LIST_VIEW_CHANGE_INFO = "info"
+export const LIST_VIEW_CHANGE_TICKET = "ticket"
+
 export const TICKET_INFO_TYPE_PAY_PLANNED= "planned"
 export const TICKET_INFO_TYPE_PAY_IMPULSIVED ="impulsived"
 export const TICKET_INFO_TYPE_PAY_UNEXPECTED ="unexpected"

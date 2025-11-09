@@ -18,7 +18,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import { v4 as uuidv4 } from "uuid";
 import { getFileAndUpload, uploadFileToServer } from "../commonApp/attachFile";
@@ -66,6 +66,7 @@ import MediaViewer from "../components/MediaViewer";
 import { onEvent, offEvent, EVENT_DB_CHANGE } from '../commonApp/DBEvents';
 
 const ChatDetails = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const idTicket = route?.params?.idTicket || "";
   const [idUserTo, setIdUserTo] = useState(""); // mm - usuario destinatario
   const [chatData, setChatData] = useState([]);
@@ -525,7 +526,7 @@ const ChatDetails = ({ navigation, route }) => {
                   position: "absolute",
                   left: 0,
                   right: 0,
-                  bottom: 0,
+                  bottom: insets.bottom + 30, // Agregar 10px más arriba para iOS
                   zIndex: 50,
                 }
               : { position: "relative" },
@@ -537,7 +538,7 @@ const ChatDetails = ({ navigation, route }) => {
               style={[
                 {
                   position: "absolute",
-                  bottom: CHAT_INPUT_AREA_HEIGHT + 10,
+                  bottom: CHAT_INPUT_AREA_HEIGHT + 10 + (Platform.OS === "ios" ? 0 : insets.bottom),
                   left: 8,
                   right: 8,
                   backgroundColor: mode == "dark" ? "#1c1c1c" : "#fff",

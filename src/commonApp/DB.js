@@ -142,7 +142,7 @@ export class DB {
       if (this.db) {
         console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
         try {
-          await this.db.getAllAsync('SELECT 1');
+          //await this.db.getAllAsync('SELECT 1');
           console.log(`[DB:${this.dbName}] Conexión SQLite activa y funcional`);
           return;
         } catch (e) {
@@ -191,8 +191,6 @@ export class DB {
           data TEXT NOT NULL
         );
       `);
-      
-      
 /*
       // Crear índices solicitados
       for (const index of this.indices) {
@@ -286,10 +284,7 @@ export class DB {
     await this._ensureInitialized();
     
     try {
-      console.log ("entro1")
       const existingDoc = await this.getWithHeader(id);
-      console.log ("entro2")
-      console.log (existingDoc)
       if (!existingDoc) {
         throw new Error(`Documento ${id} no encontrado`);
       }
@@ -322,8 +317,6 @@ export class DB {
       
       // Guardar localmente
       await this._putLocal(updatedDoc);
-      
-      //console.log(`[DB:${this.dbName}] ✓ Documento ${id} actualizado localmente (updatedAt: ${dataWithTimestamp.updatedAt})`);
       
       // Si es remoto, sincronizar inmediatamente
       if (this.isRemote) {
@@ -533,8 +526,8 @@ export class DB {
     catch (e){
       console.log(`[_putLocal] Error guardando documento:`, {
         docId: doc?._id,
-        error: e.message,
-        stack: e.stack
+        error: e?.message || String(e),
+        stack: e?.stack || 'No stack trace available'
       });
       throw e;
     }
@@ -1054,7 +1047,7 @@ export class DB {
       try {
         await this.initDB();
       } catch (error) {
-        throw new Error(`[DB:${this.dbName}] Falló la reinicialización: ${error.message}`);
+        throw new Error(`[DB:${this.dbName}] Falló la reinicialización: ${error?.message || String(error)}`);
       }
     }
     
@@ -1067,14 +1060,14 @@ export class DB {
           await this._initSQLite();
         }
       } catch (error) {
-        throw new Error(`[DB:${this.dbName}] Falló la reconexión: ${error.message}`);
+        throw new Error(`[DB:${this.dbName}] Falló la reconexión: ${error?.message || String(error)}`);
       }
     }
     
     // Para SQLite, verificar que la conexión esté activa
-    if (!this.isWeb) {
+    if (!this.isWeb && this.db) {
       try {
-        // Hacer una consulta simple para verificar que la conexión funciona
+        // Verificar que la conexión SQLite esté activa
         //await this.db.getAllAsync('SELECT 1');
       } catch (error) {
         console.error(`[DB:${this.dbName}] Error en validación SQLite:`, error);
@@ -1082,10 +1075,9 @@ export class DB {
         try {
           console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
           this.db = await SQLite.openDatabaseAsync(this.dbName);
-          //await this.db.getAllAsync('SELECT 1'); // Verificar de nuevo
           console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
         } catch (retryError) {
-          throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error.message}`);
+          throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error?.message || String(error)}`);
         }
       }
     }

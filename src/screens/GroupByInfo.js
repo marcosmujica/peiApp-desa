@@ -22,6 +22,68 @@ import AttachmentPickerHost from "../components/AttachmentPicker";
 import Loading from "../components/Loading";
 import AppContext from "../context/appContext";
 
+// Función para agrupar tickets por fecha
+const groupTicketsByDate = (tickets) => {
+  const groups = {};
+  
+  tickets.forEach(ticket => {
+    const date = new Date(ticket.TSCreated);
+    const dateKey = date.toDateString(); // "Mon Nov 05 2025"
+    
+    if (!groups[dateKey]) {
+      groups[dateKey] = {
+        date: dateKey,
+        dateFormatted: formatDateGroup(date),
+        tickets: []
+      };
+    }
+    
+    groups[dateKey].tickets.push(ticket);
+  });
+  
+  // Convertir objeto a array y ordenar por fecha (más reciente primero)
+  return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
+// Función para formatear la fecha del grupo
+const formatDateGroup = (date) => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const inputDate = new Date(date);
+  
+  if (inputDate.toDateString() === today.toDateString()) {
+    return "Hoy";
+  } else if (inputDate.toDateString() === yesterday.toDateString()) {
+    return "Ayer";
+  } else {
+    return inputDate.toLocaleDateString('es-ES', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+};
+
+// Componente para el badge de fecha
+const DateBadge = ({ dateText }) => {
+  const mode = useColorScheme();
+  
+  return (
+    <View style={[tStyles.centerx, { marginVertical: 15 }]}>
+      <View>
+        <Text style={[
+          getStyles(mode).titleBadge,
+        ]}>
+          {dateText}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
 const GroupByInfo = ({ navigation, route }) => {
   const [idGroup] = useState(route.params["idGroup"]);
   const [idGroupBy] = useState(route.params["idGroupBy"]);
@@ -30,6 +92,8 @@ const GroupByInfo = ({ navigation, route }) => {
   const [avatarURL, setAvatarURL] = useState("");
   const [dataList, setDataList] = useState([]);
   const [dataListSearch, setDataListSearch] = useState([]);
+  const [groupedTickets, setGroupedTickets] = useState([]);
+  const [groupedTicketsSearch, setGroupedTicketsSearch] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [avatarKey, setAvatarKey] = useState(Date.now());
@@ -115,14 +179,25 @@ const GroupByInfo = ({ navigation, route }) => {
       const dateB = new Date(b.TSCreated).getTime();
       return dateB - dateA; // Orden descendente (más reciente primero)
     });
+    
     setDataList(aux2);
     setDataListSearch(aux2);
+    
+    // Agrupar tickets por fecha
+    const grouped = groupTicketsByDate(aux2);
+    setGroupedTickets(grouped);
+    setGroupedTicketsSearch(grouped);
 
     setRefreshing(false);
   }
 
   function searchText(textToSearch) {
-    setDataListSearch(!textToSearch ? dataList : dataList.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase())));
+    const filteredList = !textToSearch ? dataList : dataList.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase()));
+    setDataListSearch(filteredList);
+    
+    // También actualizar los grupos filtrados
+    const filteredGrouped = groupTicketsByDate(filteredList);
+    setGroupedTicketsSearch(filteredGrouped);
   }
 
   function goToTicketDetail(idTicket) {
@@ -155,7 +230,8 @@ const GroupByInfo = ({ navigation, route }) => {
         style={{ height: "100%" }}
         contentContainerStyle={{ paddingTop: 0 }}
         onScroll={scrollHandler}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        >
         <View style={[tStyles.centery, getStyles(mode).info, { marginTop: -40 }]}>
           <Text style={getStyles(mode).sectionTitle}>{groupByInfo.name}</Text>
         </View>
@@ -182,16 +258,22 @@ const GroupByInfo = ({ navigation, route }) => {
           )}
         </View>
         <View style={[{ padding: 10 }]}>
-          <FlatList
-            scrollEnabled={false}
-            horizontal={false}
-            showsHorizontalScrollIndicator={false}
-            data={dataListSearch}
-            keyExtractor={(item, index) => `${item.id}-${index}`}
-            renderItem={({ item }) => <TicketItem item={item} onClick={goToTicketDetail} />}
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-            keyboardShouldPersistTaps="handled"
-          />
+          {groupedTicketsSearch.map((group, groupIndex) => (
+            <View key={group.date}>
+              <DateBadge dateText={group.dateFormatted} />
+              <FlatList
+                scrollEnabled={false}
+                horizontal={false}
+                showsHorizontalScrollIndicator={false}
+                data={group.tickets}
+                keyExtractor={(item, index) => `${item.id}-${index}`}
+                renderItem={({ item }) => <TicketItem item={item} onClick={goToTicketDetail} />}
+                contentContainerStyle={{ paddingHorizontal: 0 }}
+                keyboardShouldPersistTaps="handled"
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />} 
+              />
+            </View>
+          ))}
         </View>
       </Animated.ScrollView>
       <TouchableOpacity
@@ -206,7 +288,7 @@ const GroupByInfo = ({ navigation, route }) => {
 const TicketItem = ({ item, onClick }) => {
   const mode = useColorScheme();
   return (
-    <TouchableOpacity onPress={() => onClick(item.id)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12 }}>
+    <TouchableOpacity onPress={() => onClick(item.id)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
       <ImgAvatar id={item.id} detail={false} size={35} />
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}

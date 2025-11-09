@@ -29,6 +29,9 @@ import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
 import localData, { EVENT_LOCAL_LISTVIEW_UPDATED } from '../commonApp/localData';
+import moment from "moment";
+import "moment/locale/es";
+moment.locale("es");
 
 const Home = ({ navigation }) => {
   const FILTER_TICKETS = "TICKETS";
@@ -50,8 +53,56 @@ const Home = ({ navigation }) => {
 
   const [dataListSearch, setDataListSearch] = React.useState([]); // mm - datos a ser visualizados
   const [dataTicket, setDataTicket] = React.useState([]); // mm - datos filtrados por los filtros
+  const [dataWithDateSeparators, setDataWithDateSeparators] = React.useState([]); // mm - datos con separadores de fecha
 
   let profile = getProfile();
+
+  // Función para agregar separadores de fecha a la lista
+  const prepareDataWithDateSeparators = (tickets) => {
+    if (!tickets || tickets.length === 0) return [];
+
+    const result = [];
+    let currentDate = null;
+
+    tickets.forEach((ticket, index) => {
+      const ticketDate = moment(ticket.ts).format('YYYY-MM-DD');
+      
+      // Si es un nuevo día, agregar separador de fecha
+      if (currentDate !== ticketDate) {
+        result.push({
+          type: 'date-separator',
+          date: ticketDate,
+          id: `date-${ticketDate}`,
+          displayDate: formatDateLabel(ticketDate)
+        });
+        currentDate = ticketDate;
+      }
+      
+      // Agregar el ticket
+      result.push({
+        type: 'ticket',
+        ...ticket,
+        id: ticket.idTicket || `ticket-${index}`
+      });
+    });
+
+    return result;
+  };
+
+  // Función para formatear el label de fecha
+  const formatDateLabel = (dateString) => {
+    const date = moment(dateString, 'YYYY-MM-DD');
+    const today = moment().startOf('day');
+    const yesterday = moment().subtract(1, 'day').startOf('day');
+
+    if (date.isSame(today, 'day')) {
+      return 'Hoy';
+    } else if (date.isSame(yesterday, 'day')) {
+      return 'Ayer';
+    } else {
+      return date.format('dddd, D [de] MMMM');
+    }
+  };
 
   const links = [
     { id: 1, title: "Nuevo Grupo", onPress: () => navigation.navigate("GroupList", { isAddGroup: true }) },
@@ -64,6 +115,7 @@ const Home = ({ navigation }) => {
 
       if (filter == TICKET_TYPE_ALL) {
         setDataListSearch(dataTicket);
+        setDataWithDateSeparators(prepareDataWithDateSeparators(dataTicket));
         return;
       }
 
@@ -71,6 +123,7 @@ const Home = ({ navigation }) => {
       setFilterWay(filter);
       let aux = dataTicket.filter((item) => item.way === filter);
       setDataListSearch(aux);
+      setDataWithDateSeparators(prepareDataWithDateSeparators(aux));
     } catch (e) {
       console.log("error filterticketbyway");
       console.log(e);
@@ -83,18 +136,22 @@ const Home = ({ navigation }) => {
     
     setFilterTicket(filter);
     setRefreshing(true);
+    let filteredData;
+    
     if (filter == FILTER_TICKETS_ALL) {
+      filteredData = dataTicket;
       setDataListSearch(dataTicket);
     }
     if (filter == FILTER_TICKETS_CLOSE) {
-      let aux = dataTicket.filter((item) => item.isOpen === false);
-      setDataListSearch(aux);
+      filteredData = dataTicket.filter((item) => item.isOpen === false);
+      setDataListSearch(filteredData);
     }
     if (filter == FILTER_TICKETS_OPEN) {
-      let aux = dataTicket.filter((item) => item.isOpen === true);
-      setDataListSearch(aux);
+      filteredData = dataTicket.filter((item) => item.isOpen === true);
+      setDataListSearch(filteredData);
     }
 
+    setDataWithDateSeparators(prepareDataWithDateSeparators(filteredData));
     setRefreshing(false);
   }
   async function processEvent(doc) {
@@ -243,6 +300,9 @@ const Home = ({ navigation }) => {
         return dateB - dateA;
       });
 
+      // Actualizar también los datos con separadores de fecha
+      setDataWithDateSeparators(prepareDataWithDateSeparators(newData));
+
       return newData;
     });
   }
@@ -304,7 +364,9 @@ const Home = ({ navigation }) => {
   }, []);
 
   function searchText(textToSearch) {
-    setDataListSearch(!textToSearch ? dataTicket : dataTicket.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase())));
+    const filteredTickets = !textToSearch ? dataTicket : dataTicket.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase()));
+    setDataListSearch(filteredTickets);
+    setDataWithDateSeparators(prepareDataWithDateSeparators(filteredTickets));
   }
 
   async function goToTicket(idTicket, title, isSeen) {
@@ -338,6 +400,7 @@ const Home = ({ navigation }) => {
       
       setDataTicket(newDataTicket);
       setDataListSearch(newDataListSearch);
+      setDataWithDateSeparators(prepareDataWithDateSeparators(newDataListSearch));
 
       console.log("✅ loadData completado - tickets cargados:", newDataTicket.length);
     } catch (e) {
@@ -375,9 +438,15 @@ const Home = ({ navigation }) => {
             </View>
           }
           showsVerticalScrollIndicator={false}
-          data={dataListSearch}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => <TicketItem item={item} idUser={profile.idUser} onClick={goToTicket} />}
+          data={dataWithDateSeparators}
+          keyExtractor={(item, index) => item.id || index.toString()}
+          renderItem={({ item }) => {
+            if (item.type === 'date-separator') {
+              return <DateSeparator date={item.displayDate} />;
+            } else {
+              return <TicketItem item={item} idUser={profile.idUser} onClick={goToTicket} />;
+            }
+          }}
           contentContainerStyle={{ paddingBottom: 80 }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
@@ -457,61 +526,15 @@ const TicketItem = ({ item, idUser, onClick }) => {
   );
 };
 
-const ListTicket = ({ item }) => {
-  const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-
+// Componente para mostrar separadores de fecha
+const DateSeparator = ({ date }) => {
+  const mode = useColorScheme();
+  
   return (
-    <TouchableOpacity onPress={() => navigation.navigate("ChatDetails")} style={getStyles(colorScheme).chatContainer}>
-      <TouchableOpacity
-        onPress={() => {
-          if (item.group) {
-            navigation.navigate("Group");
-          } else {
-            navigation.navigate("Profile");
-          }
-        }}>
-        <Image source={{ uri: item.img }} style={getStyles(colorScheme).chatAvatar} />
-      </TouchableOpacity>
-
-      <View style={getStyles(colorScheme).chatMessageHolder}>
-        <View style={[tStyles.flex1]}>
-          <Text style={getStyles(colorScheme).chatUsername}>{item.name}</Text>
-          <View style={[tStyles.row]}>
-            <Ionicons name="checkmark-done-sharp" size={14} color={colors.gray50} />
-            <Text style={getStyles(colorScheme).chatMessage}>{ellipString(item.lastMsg, 30)}</Text>
-          </View>
-        </View>
-
-        <View style={[tStyles.endy]}>
-          <Text style={[getStyles(colorScheme).subNormalText, !item.seen ? getStyles(colorScheme).activeText : null]}>{displayTime(item.time)}</Text>
-          {!item.seen && (
-            <View style={getStyles(colorScheme).activeBadge}>
-              <Text style={getStyles(colorScheme).badgeText}>{item.unread}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-const ChatFilter = () => {
-  const colorScheme = useColorScheme();
-
-  const filterItems = [
-    { id: 1, title: "All", active: true },
-    { id: 2, title: "Unread", active: false },
-    { id: 3, title: "Groups", active: false },
-  ];
-
-  return (
-    <View style={[tStyles.row, { marginVertical: 10 }]}>
-      {filterItems.map((item) => (
-        <TouchableOpacity style={[getStyles(colorScheme).chatFilter, item.active ? getStyles(colorScheme).activeChatFilter : null]} key={item.id}>
-          <Text style={[getStyles(colorScheme).chatFilterText, item.active ? getStyles(colorScheme).activeChatFilterText : null]}>{item.title}</Text>
-        </TouchableOpacity>
-      ))}
+    <View>
+              <Text style={getStyles(mode).titleBadge}>
+          {date}
+        </Text>
     </View>
   );
 };

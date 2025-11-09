@@ -210,6 +210,15 @@ const lightStyles = StyleSheet.create({
     color: colors.gray75,
   },
  
+  titleBadge: {
+    backgroundColor: colors.gray7,
+    paddingHorizontal: 15,
+    borderRadius:20,
+    paddingVertical: 4,
+    alignSelf: 'center',
+    color:colors.gray40,
+    fontSize:12
+  },
   activeBadge: {
     minWidth: 15,
     minHeight: 15,
@@ -493,6 +502,11 @@ const darkStyles = StyleSheet.create({
   info: {
           ...lightStyles.info,
           backgroundColor: colors.dark
+  },
+  titleBadge: {
+    ...lightStyles.titleBadge,
+    backgroundColor: colors.gray75,
+    color:colors.gray7,
   },
 
 });

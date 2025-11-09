@@ -149,24 +149,15 @@ export async function getCountryCodeByIP(ip = null) {
     let ipToUse = ip;
     if (!ipToUse) {
       // Get public IP of the device using a lightweight public service
-      try {
-        const ipRes = await fetch('https://api.ipify.org?format=json');
-        if (ipRes.ok) {
-          const ipJson = await ipRes.json();
-          ipToUse = ipJson && ipJson.ip ? ipJson.ip : null;
-        }
-      } catch (e) {
-        // ignore and continue — ipToUse may be null
-        ipToUse = null;
-      }
+        ipToUse = (await fetch('https://ipinfo.io/ip').then(r => r.text())).trim();
+        
     }
-
     if (!ipToUse) return false;
+    const response = await fetch(`https://ipwho.is/${ipToUse}`).then(r => r.text())
 
-    const response = await fetch(`https://ipapi.co/${ipToUse}/json/`);
-    if (!response.ok) return false;
-    const data = await response.json();
-    return data && data.country ? data.country : false;
+    if (!response) return false;
+    let responseJson = JSON.parse(response)
+    return responseJson && responseJson.country_code ? responseJson.country_code : false;
   } catch (error) {
     return false;
   }

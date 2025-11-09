@@ -477,7 +477,7 @@ const NewTicket = ({ navigation, route }) => {
                 <TextInput
                   placeholder="importe del ticket..."
                   placeholderTextColor={colors.secondary}
-                  style={[getStyles(mode).textInput, { textAlign: "right", flex: 1 }]}
+                  style={[getStyles(mode).textInput, { textAlign: "right", flex: 1, fontSize:20 }]}
                   value={ticketAmount}
                   keyboardType="numeric"
                   onChangeText={setTicketAmount}

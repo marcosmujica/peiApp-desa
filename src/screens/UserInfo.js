@@ -15,11 +15,73 @@ import { formatDateToText, formatNumber } from '../commonApp/functions';
 import { getProfile } from '../commonApp/profile';
 import MediaViewer from "../components/MediaViewer";
 
+// Función para agrupar tickets por fecha
+const groupTicketsByDate = (tickets) => {
+  const groups = {};
+  
+  tickets.forEach(ticket => {
+    const date = new Date(ticket.ts); // En UserInfo usa 'ts' en lugar de 'TSCreated'
+    const dateKey = date.toDateString(); // "Mon Nov 05 2025"
+    
+    if (!groups[dateKey]) {
+      groups[dateKey] = {
+        date: dateKey,
+        dateFormatted: formatDateGroup(date),
+        tickets: []
+      };
+    }
+    
+    groups[dateKey].tickets.push(ticket);
+  });
+  
+  // Convertir objeto a array y ordenar por fecha (más reciente primero)
+  return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
+// Función para formatear la fecha del grupo
+const formatDateGroup = (date) => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const inputDate = new Date(date);
+  
+  if (inputDate.toDateString() === today.toDateString()) {
+    return "Hoy";
+  } else if (inputDate.toDateString() === yesterday.toDateString()) {
+    return "Ayer";
+  } else {
+    return inputDate.toLocaleDateString('es-ES', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+};
+
+// Componente para el badge de fecha
+const DateBadge = ({ dateText }) => {
+  const mode = useColorScheme();
+  const homeStyles = getHomeStyles(mode);
+  
+  return (
+    <View style={[tStyles.centerx, { marginVertical: 15 }]}>
+        <Text style={[
+          homeStyles.titleBadge
+        ]}>
+          {dateText}
+        </Text>
+    </View>
+  );
+};
+
 const UserInfo = ({ navigation, route }) => {
 
     const [idUser] = useState (route.params ["idUser"])
     const [avatarURL, setAvatarURL] = useState ("") 
-    const [dataList, setDataList] = useState ([]) 
+    const [dataList, setDataList] = useState ([])
+    const [groupedTickets, setGroupedTickets] = useState([])
     const [refreshing, setRefreshing] = useState(false);
     const mode = useColorScheme();
     const scrollOffset = 150;
@@ -82,6 +144,11 @@ const UserInfo = ({ navigation, route }) => {
             catch (e) { console.log ("error loadata"); console.log (e)}
         }
         setDataList (ticketView)
+        
+        // Agrupar tickets por fecha
+        const grouped = groupTicketsByDate(ticketView);
+        setGroupedTickets(grouped);
+        
         setRefreshing (false)
     }
 
@@ -130,18 +197,23 @@ const UserInfo = ({ navigation, route }) => {
                                 
                 {/* Lista de Tickets */}
                 <View style={ [getStyles(mode).bgStrip, { paddingVertical: 10 }] }>
-                    {dataList.length > 0 ? (
-                        dataList.map((item, index) => {
-                            return (
-                                <TicketItem 
-                                    key={item.idTicket?.toString() || `ticket-${index}`} 
-                                    item={item} 
-                                    onClick={goToTicket}
-                                    mode={mode}
-                                    ellipString={ellipString}
-                                />
-                            );
-                        })
+                    {groupedTickets.length > 0 ? (
+                        groupedTickets.map((group, groupIndex) => (
+                            <View key={group.date}>
+                                <DateBadge dateText={group.dateFormatted} />
+                                {group.tickets.map((item, index) => {
+                                    return (
+                                        <TicketItem 
+                                            key={item.idTicket?.toString() || `ticket-${groupIndex}-${index}`} 
+                                            item={item} 
+                                            onClick={goToTicket}
+                                            mode={mode}
+                                            ellipString={ellipString}
+                                        />
+                                    );
+                                })}
+                            </View>
+                        ))
                     ) : (
                         <View style={{ padding: 20, alignItems: 'center' }}>
                             <Text style={{ color: colors.gray50 }}>No hay tickets para mostrar</Text>

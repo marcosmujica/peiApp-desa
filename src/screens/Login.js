@@ -10,6 +10,7 @@ import Loading from '../components/Loading';
 import { getStyles } from "../styles/home";
 import { setProfile, getProfile } from '../commonApp/profile';
 import { getPhoneCodeByCountryId, getCountryCodeByIP } from '../commonApp/functions';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 const Login = ({ navigation }) => {
 
@@ -43,12 +44,23 @@ const Login = ({ navigation }) => {
         try{
             { 
                 const regex = /^[0-9]*$/;
-                if (regex.test(phone))
+
+                // mm - lo paso a otra variable por setphone demora en actualizarse
+                let auxPhone = phone.replace(/\D/g, '')
+                setPhone (auxPhone)
+
+                if (regex.test(auxPhone))
                 {  
-                    console.log (country.name)
                     if (country.code === undefined)
                     {
                         showAlertModal("Atención", "Por favor selecciona tu país"); 
+                        return
+                    }
+                    let phoneValidation = parsePhoneNumberFromString(country.dial_code + auxPhone, country.code);
+                    
+                    if (!phoneValidation.isValid())
+                    {
+                        showAlertModal("Atención", "El número móvil ingresado no es válido para el país, por favor verifica"); 
                         return
                     }
                     setLoading (true)
@@ -56,11 +68,10 @@ const Login = ({ navigation }) => {
                     try {
                         let aux = getProfile()
 
-                        aux.phone = phone
                         aux.phonePrefix  = country.dial_code
                         aux.countryCode = country.code
                         aux.countryName = country.name
-                        aux.phone = country.dial_code + phone /// saco los 0 de la izquierda
+                        aux.phone = country.dial_code + auxPhone /// saco los 0 de la izquierda
 
                         await setProfile(aux)
                         await db_setOTP (aux.phone)
@@ -105,8 +116,6 @@ const Login = ({ navigation }) => {
                         phoneStyles={[getStyles(mode).searchBarInput, {height:40}]}
                         countryCodeTextStyles={getStyles(mode).subNormalText}
                         dropdownTextStyles={getStyles(mode).subNormalText}
-                        
-                        
                     />
                 </View>
                 <View style={{ paddingHorizontal: 15, marginBottom: 15, display: phone.length > 4 ? 'block' : 'none'}}>

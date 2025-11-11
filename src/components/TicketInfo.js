@@ -261,9 +261,9 @@ const TicketInfo = ({ idTicket }) => {
       setRating(await db_getTicketRating(idTicket));
       
       // mm - me fijo si soy el dueno muestro el del otro, sino muestro quien lo creo
-      setContactId(ticketAux.idUserCreatedBy == profile.idUser ? ticketAux.idUserTo : ticketAux.idUserFrom);
+      setContactId(isMe(ticketAux.idUserCreatedBy) ? ticketAux.idUserTo : ticketAux.idUserFrom);
       // Guardar solo el nombre para evitar renderizar objetos completos
-      const contactObj = getContactName(ticketAux.idUserCreatedBy == profile.idUser ? ticketAux.idUserTo : ticketAux.idUserFrom);
+      const contactObj = getContactName(isMe (ticketAux.idUserCreatedBy) ? ticketAux.idUserTo : ticketAux.idUserFrom);
       setContactName(contactObj && contactObj.name ? contactObj.name : "");
       // mm - lo guardo en una variable porque no le da el tiempo de guardarla y luego consultarla
       setRefreshtitle ("Buscando cambios...")
@@ -314,8 +314,12 @@ const TicketInfo = ({ idTicket }) => {
       {
         // mm - obtengo el registro de pago
         let aux = ticketInfo.find((item) => item.type == TICKET_INFO_TYPE_PAY);
-        setPayType(aux.info.type);
-        setExpensesCategory(aux.info.expensesCategory);
+
+        if (aux != undefined)
+        {
+          setPayType(aux.info.type);
+          setExpensesCategory(aux.info.expensesCategory);
+        }
 
         // mm - obtengo el registro de tipo de gasto
         aux = ticketInfo.find((item) => item.type == TICKET_INFO_TYPE_USE_TYPE && item.idUser == profile.idUser);

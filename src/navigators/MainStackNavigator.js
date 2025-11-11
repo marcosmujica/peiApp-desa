@@ -11,6 +11,7 @@ export const MainStackNavigator = () => {
             <Stack.Screen name="PreLogin" component={ Screens.PreLogin } />
             <Stack.Screen name="Login" component={ Screens.Login } />
             <Stack.Screen name="UserGroupInfo" component={ Screens.UserGroupInfo } />
+            <Stack.Screen name="MoneyAgenda" component={ Screens.MoneyAgenda } />
             <Stack.Screen name="UserInfo" component={ Screens.UserInfo } />
             <Stack.Screen name="HomeGroups" component={ Screens.HomeGroups } />
             <Stack.Screen name="HomeContacts" component={ Screens.HomeContacts } />

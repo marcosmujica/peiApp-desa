@@ -5,7 +5,8 @@ import {
   TouchableOpacity,
   useColorScheme,
   StyleSheet,
-  Platform
+  Platform,
+  Linking
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -75,7 +76,7 @@ const MainScreen = ({ navigation }) => {
           tabBarSelectedIcon: () => (
             <MaterialIcons name="chat" size={20} color={colors.primary} />
           ),
-          headerTitle: (props) => <CustomHeader {...props} />,
+          headerTitle: (props) => <CustomHeader {...props} navigation={navigation} />,
           tabBarBadge: 10,
         }}
       />
@@ -143,25 +144,87 @@ const MainScreen = ({ navigation }) => {
   );
 };
 
-function CustomHeader({ children }) {
+function CustomHeader({ children, navigation }) {
   const mode = useColorScheme();
   const { options, setOptions } = React.useContext(AppContext);
+
+  const handleAgendaPress = () => {
+    // Acción para el botón de agenda
+    console.log("Navigating to MoneyAgenda");
+    navigation.navigate("MoneyAgenda");
+  };
+
+  const handleRegistroPress = () => {
+    // Acción para el botón de registro
+    const phoneNumber = '+59899117501';
+    const message = '';
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    Linking.openURL(whatsappUrl).catch(err => console.error('Error opening WhatsApp:', err));
+    console.log("Registro pressed");
+  };
+
+  const handleInformePress = () => {
+    // Acción para el botón de informe
+    console.log("Informe pressed");
+  };
 
   return (
     <View style={getStyles(mode).tabHeader}>
       <Text style={getStyles(mode).tabHeaderText}>{children}</Text>
 
-      <TouchableOpacity 
-        onPress={() => setOptions(!options)}
-        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-        style={{ padding: 8 }}
-      >
-        <Entypo
-          name="dots-three-vertical"
-          size={16}
-          color={mode == "dark" ? colors.white : null}
-        />
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {/* Botón Agenda */}
+        <TouchableOpacity 
+          onPress={handleAgendaPress}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          style={{ padding: 8 }}
+        >
+          <MaterialIcons
+            name="event"
+            size={20}
+            color={mode == "dark" ? colors.gray25 : colors.gray70}
+          />
+        </TouchableOpacity>
+
+        {/* Botón Registro */}
+        <TouchableOpacity 
+          onPress={handleRegistroPress}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          style={{ padding: 8 }}
+        >
+          <MaterialIcons
+            name="message"
+            size={20}
+            color={mode == "dark" ? colors.gray25 : colors.gray70}
+          />
+        </TouchableOpacity>
+
+        {/* Botón Informe */}
+        <TouchableOpacity 
+          onPress={handleInformePress}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          style={{ padding: 8 }}
+        >
+          <MaterialIcons
+            name="assessment"
+            size={20}
+            color={mode == "dark" ? colors.gray25: colors.gray70}
+          />
+        </TouchableOpacity>
+
+        {/* Botón Options */}
+        <TouchableOpacity 
+          onPress={() => setOptions(!options)}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          style={{ padding: 8 }}
+        >
+          <Entypo
+            name="dots-three-vertical"
+            size={16}
+            color={mode == "dark" ? colors.white : null}
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

@@ -146,7 +146,7 @@ const lightStyles = StyleSheet.create({
   chatContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 7,
   },
   avatarHolder: {
     position: "absolute",

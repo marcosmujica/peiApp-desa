@@ -49,60 +49,12 @@ const Home = ({ navigation }) => {
   const [filter, setFilter] = React.useState(FILTER_TICKETS);
   const [filterTicket, setFilterTicket] = React.useState(FILTER_TICKETS_ALL);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterWay, setFilterWay] = useState(TICKET_TYPE_ALL);
+  const [filterWay, setFilterWay] = useState(FILTER_TICKETS_CLOSE);
 
   const [dataListSearch, setDataListSearch] = React.useState([]); // mm - datos a ser visualizados
   const [dataTicket, setDataTicket] = React.useState([]); // mm - datos filtrados por los filtros
-  const [dataWithDateSeparators, setDataWithDateSeparators] = React.useState([]); // mm - datos con separadores de fecha
 
   let profile = getProfile();
-
-  // Función para agregar separadores de fecha a la lista
-  const prepareDataWithDateSeparators = (tickets) => {
-    if (!tickets || tickets.length === 0) return [];
-
-    const result = [];
-    let currentDate = null;
-
-    tickets.forEach((ticket, index) => {
-      const ticketDate = moment(ticket.ts).format('YYYY-MM-DD');
-      
-      // Si es un nuevo día, agregar separador de fecha
-      if (currentDate !== ticketDate) {
-        result.push({
-          type: 'date-separator',
-          date: ticketDate,
-          id: `date-${ticketDate}`,
-          displayDate: formatDateLabel(ticketDate)
-        });
-        currentDate = ticketDate;
-      }
-      
-      // Agregar el ticket
-      result.push({
-        type: 'ticket',
-        ...ticket,
-        id: ticket.idTicket || `ticket-${index}`
-      });
-    });
-
-    return result;
-  };
-
-  // Función para formatear el label de fecha
-  const formatDateLabel = (dateString) => {
-    const date = moment(dateString, 'YYYY-MM-DD');
-    const today = moment().startOf('day');
-    const yesterday = moment().subtract(1, 'day').startOf('day');
-
-    if (date.isSame(today, 'day')) {
-      return 'Hoy';
-    } else if (date.isSame(yesterday, 'day')) {
-      return 'Ayer';
-    } else {
-      return date.format('dddd, D [de] MMMM');
-    }
-  };
 
   const links = [
     { id: 1, title: "Nuevo Grupo", onPress: () => navigation.navigate("GroupList", { isAddGroup: true }) },
@@ -115,15 +67,19 @@ const Home = ({ navigation }) => {
 
       if (filter == TICKET_TYPE_ALL) {
         setDataListSearch(dataTicket);
-        setDataWithDateSeparators(prepareDataWithDateSeparators(dataTicket));
         return;
       }
 
       setRefreshing(true);
       setFilterWay(filter);
       let aux = dataTicket.filter((item) => item.way === filter);
+      // Ordenar por timestamp descendente
+      aux.sort((a, b) => {
+        const dateA = new Date(a.ts).getTime();
+        const dateB = new Date(b.ts).getTime();
+        return dateB - dateA;
+      });
       setDataListSearch(aux);
-      setDataWithDateSeparators(prepareDataWithDateSeparators(aux));
     } catch (e) {
       console.log("error filterticketbyway");
       console.log(e);
@@ -140,121 +96,25 @@ const Home = ({ navigation }) => {
     
     if (filter == FILTER_TICKETS_ALL) {
       filteredData = dataTicket;
-      setDataListSearch(dataTicket);
-    }
-    if (filter == FILTER_TICKETS_CLOSE) {
+    } else if (filter == FILTER_TICKETS_CLOSE) {
       filteredData = dataTicket.filter((item) => item.isOpen === false);
-      setDataListSearch(filteredData);
-    }
-    if (filter == FILTER_TICKETS_OPEN) {
+    } else if (filter == FILTER_TICKETS_OPEN) {
       filteredData = dataTicket.filter((item) => item.isOpen === true);
+    }
+    
+    // Ordenar por timestamp descendente
+    if (filteredData) {
+      filteredData.sort((a, b) => {
+        const dateA = new Date(a.ts).getTime();
+        const dateB = new Date(b.ts).getTime();
+        return dateB - dateA;
+      });
       setDataListSearch(filteredData);
     }
-
-    setDataWithDateSeparators(prepareDataWithDateSeparators(filteredData));
     setRefreshing(false);
   }
   async function processEvent(doc) {
     loadData ()
-    return
-    console.log("🔔 EVENT RECEIVED:", doc.table, doc._id);
-    //return
-    try {
-      if (doc.table == db_TICKET_CHAT) {
-        let item = await db_getTicketViewByTicketId(doc.data.idTicket);
-
-        if (item.length == 0) return;
-
-        item.lastMsg = doc.data.message;
-
-        if (doc.data.mediaType == "image") item.lastMsg = ">> Foto";
-        if (doc.data.mediaType == "file") item.lastMsg = ">> Archivo";
-
-        let aux2 = TICKET_DETAIL_STATUS.find((aux) => aux.code == doc.data.idStatus);
-
-        item.ts = new Date();
-        // mm - si lo envie yo no lo marco
-        if (doc.data.idUserFrom != profile.idUser) {
-          item.seen = false;
-        }
-
-        // mm - NO actualizar la BD aquí, solo actualizar el estado UI
-        await db_updateTicketListItem (item.idTicket, item)
-
-        // mm - actualizar solo el item específico en el estado
-        updateTicketInList(item.idTicket, item);
-      }
-      if (doc.table == db_TICKET_LOG_STATUS) {
-        let item = await db_getTicketViewByTicketId(doc.data.idTicket);
-
-        if (!item) return;
-
-        item.status = doc.data.idStatus;
-        let aux2 = TICKET_DETAIL_STATUS.find((aux) => aux.code == doc.data.idStatus);
-        item.statusText = aux2.name;
-
-        // mm - le cambio la fecha de vencimiento
-        if (doc.data.idStatus == TICKET_DETAIL_CHANGE_DUE_DATE_STATUS) {
-          item.dueDate = doc.data.data.dueDate;
-        }
-
-        if (doc.data.idStatus == TICKET_DETAIL_CLOSED_STATUS) {
-          item.isOpen = false
-        }
-
-        // mm - si lo envie yo no lo marco
-        item.ts = new Date();
-
-        if (doc.data.idUserFrom != profile.idUser) {
-          item.seen = false;
-        }
-
-        // mm - NO actualizar la BD aquí, solo actualizar el estado UI
-        await db_updateTicketListItem (item.idTicket, item)
-
-        // mm - actualizar solo el item específico en el estado
-        updateTicketInList(item.idTicket, item);
-      }
-      if (doc.table == db_TICKET) {
-        let item = new TICKET_LIST_ITEM();
-        let data = doc.data;
-        item.idTicket = doc._id;
-        item.idGroup = item.idTicketGroup
-        item.idGroupBy = item.idTicketGroupBy
-        item.idUserTo = data.idUserCreatedBy == profile.idUser ? data.idUserTo : data.idUserFrom;
-        item.idUserCreatedBy = data.idUserCreatedBy
-        item.currency = doc.data.currency;
-        item.title = data.title;
-        item.isOpen = data.isOpen;
-        item.amount = data.amount;
-        item.way = data.way; // mm - por default el way es el del ticket
-
-        // mm - determino que tipo de ticket es
-        if (!isMe(data.idUserCreatedBy) && data.way == TICKET_TYPE_PAY) {
-          item.way = TICKET_TYPE_COLLECT;
-        }
-        if (!isMe(data.idUserCreatedBy) && data.way == TICKET_TYPE_COLLECT) {
-          item.way = TICKET_TYPE_PAY;
-        }
-
-        item.ts = new Date();
-        item.dueDate = data.TSDueDate;
-
-        // mm - determino si existe antes por si hubo un error previamente
-        let aux = await db_getTicketViewByTicketId(doc._id);
-
-        if (!aux) {
-          // mm- agrego si no estaba previamente en ticket_view
-          await db_addTicketListItem(item.idTicket, item);
-        }
-
-        // mm - actualizar solo el item específico en el estado
-        updateTicketInList(item.idTicket, item);
-      }
-    } catch (e) {
-      console.log(e);
-      console.log("❌ error processEvent");
-    }
   }
 
   // mm - función para actualizar un ticket específico en la lista sin recargar todo
@@ -300,9 +160,6 @@ const Home = ({ navigation }) => {
         return dateB - dateA;
       });
 
-      // Actualizar también los datos con separadores de fecha
-      setDataWithDateSeparators(prepareDataWithDateSeparators(newData));
-
       return newData;
     });
   }
@@ -324,34 +181,7 @@ const Home = ({ navigation }) => {
 
     // mm - al hacer el focus recargo los datos
     const onFocus = () => {
-      //checkDB();
-      //loadData(); // mm - recargar datos cuando la pantalla recibe focus
-      // mm - comentado porque causa bucle infinito
-      // La lógica de limpiar el stack de navegación puede causar problemas
-      // Si realmente necesitas limpiar el stack, considera hacerlo desde 
-      // donde navegas hacia Home, no en el evento focus
-      /*
-      try {
-        const state = navigation.getState();
-        
-        if (!state || !state.routes || !Array.isArray(state.routes) || state.routes.length === 0) {
-          return;
-        }
-        
-        const currentRoute = state.routes[state.index];
-        
-        if (!currentRoute || state.routes.length === 1) {
-          return;
-        }
-        
-        navigation.reset({
-          index: 0,
-          routes: [{ name: currentRoute.name, params: currentRoute.params }],
-        });
-      } catch (e) {
-        console.warn("Error pruning navigation state on focus", e);
-      }
-      */
+
     };
 
     const unsubscribe = navigation.addListener("focus", onFocus);
@@ -365,8 +195,13 @@ const Home = ({ navigation }) => {
 
   function searchText(textToSearch) {
     const filteredTickets = !textToSearch ? dataTicket : dataTicket.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase()));
+    // Ordenar por timestamp descendente
+    filteredTickets.sort((a, b) => {
+      const dateA = new Date(a.ts).getTime();
+      const dateB = new Date(b.ts).getTime();
+      return dateB - dateA;
+    });
     setDataListSearch(filteredTickets);
-    setDataWithDateSeparators(prepareDataWithDateSeparators(filteredTickets));
   }
 
   async function goToTicket(idTicket, title, isSeen) {
@@ -400,9 +235,6 @@ const Home = ({ navigation }) => {
       
       setDataTicket(newDataTicket);
       setDataListSearch(newDataListSearch);
-      setDataWithDateSeparators(prepareDataWithDateSeparators(newDataListSearch));
-
-      console.log("✅ loadData completado - tickets cargados:", newDataTicket.length);
     } catch (e) {
       console.log("error en loaddata");
       console.log(e);
@@ -415,7 +247,6 @@ const Home = ({ navigation }) => {
         <FlatList
           ListHeaderComponent={
             <View>
-             
               <SearchBar textToSearch={searchText} />
               <BadgeBtn
                 items={[
@@ -438,14 +269,10 @@ const Home = ({ navigation }) => {
             </View>
           }
           showsVerticalScrollIndicator={false}
-          data={dataWithDateSeparators}
-          keyExtractor={(item, index) => item.id || index.toString()}
+          data={dataListSearch}
+          keyExtractor={(item, index) => item.idTicket || index.toString()}
           renderItem={({ item }) => {
-            if (item.type === 'date-separator') {
-              return <DateSeparator date={item.displayDate} />;
-            } else {
-              return <TicketItem item={item} idUser={profile.idUser} onClick={goToTicket} />;
-            }
+            return <TicketItem item={item} idProfile={profile.idUser} idUser={profile.idUser} onClick={goToTicket} />;
           }}
           contentContainerStyle={{ paddingBottom: 80 }}
           keyboardShouldPersistTaps="handled"
@@ -464,25 +291,25 @@ const Home = ({ navigation }) => {
   );
 };
 
-const TicketItem = ({ item, idUser, onClick }) => {
+const TicketItem = ({ item, idUser, onClick, idProfile }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   
   return (
     <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
       <TouchableOpacity>
-        <ImgAvatar id={item.idUserTo} size={45} />
+        <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={45} detail={item.idUserTo == "" ? false : true}/>
       </TouchableOpacity>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <Text style={[
             getStyles(colorScheme).listMainText, 
-            (!item.seen && item.changeSource === 'ticket') ? {color: colors.lightPrimary} : null
+            (!item.seen && item.changeSource === 'ticket') ? {color: colors.warning} : null
           ]} numberOfLines={1}>
             {ellipString(item.title, 20)}
           </Text>
-          <Text style={[getStyles(colorScheme).listSecondText, (!item.seen && item.changeSource === 'log_status') ? {color: colors.lightPrimary} : null]}>
+          <Text style={[getStyles(colorScheme).listSecondText, (!item.seen && item.changeSource === 'log_status') ? {color: colors.warning} : null]}>
             {item.statusText ? `[${ellipString(item.statusText, 10)}] ` : ""} {formatDateToText(item.dueDate)}
           </Text>
         </View>
@@ -491,7 +318,7 @@ const TicketItem = ({ item, idUser, onClick }) => {
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 4 }}>
           <Text style={[
             getStyles(colorScheme).listSecondText,
-            (!item.seen && item.changeSource === 'chat') ? {color: colors.lightPrimary} : null
+            (!item.seen && item.changeSource === 'chat') ? {color: colors.warning} : null
           ]} numberOfLines={1}>
             {item.changesource}
             {item.lastMsg != "" ? ellipString(item.lastMsg, 50) : " "}
@@ -526,17 +353,6 @@ const TicketItem = ({ item, idUser, onClick }) => {
   );
 };
 
-// Componente para mostrar separadores de fecha
-const DateSeparator = ({ date }) => {
-  const mode = useColorScheme();
-  
-  return (
-    <View>
-              <Text style={getStyles(mode).titleBadge}>
-          {date}
-        </Text>
-    </View>
-  );
-};
+
 
 export default Home;

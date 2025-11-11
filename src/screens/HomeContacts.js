@@ -87,9 +87,7 @@ const HomeContacts = ({ navigation }) => {
         <FlatList
           ListHeaderComponent={
             <View>
-             
               <SearchBar textToSearch={searchText} />
-              
             </View>
           }
           showsVerticalScrollIndicator={false}

@@ -42,7 +42,7 @@ import {
 } from "../commonApp/constants";
 import { showToast } from "../common/toast";
 import { TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE } from "../commonApp/dataTypes";
-import { getProfile } from "../commonApp/profile";
+import { getProfile, isMe } from "../commonApp/profile";
 import CurrencyDropDown from "../components/CurrencyDropDown";
 import DropDownList from "../components/DropDownList";
 import TitleBar from "../components/TitleBar";
@@ -169,12 +169,19 @@ const NewTicket = ({ navigation, route }) => {
     }
 
     setLoading(true);
+    debugger
+
+    // mm - si el ticket no viene para nadie me lo agrego a mi como usuario
+    if (groupUsersList.length ==0)
+    {
+      groupUsersList.push ({id:1, name:"", contact: profile.idUser})
+    }
 
     // mm - si no se creo la asociacion de tickets lo creo
     for (const item of groupUsersList) {
       let idToUser = item.contact;
       // mm - para no crearle un ticket al creador del ticket
-      if (idToUser != profile.idUser) {
+      //if (idToUser != profile.idUser) {
         // mm - necesito volver a crear el ticket cada vez para que no de error
         
         let idTicket = uuidv4()
@@ -197,8 +204,15 @@ const NewTicket = ({ navigation, route }) => {
           ticketInfoCollect.info.areaWork = userAreaToWork;
         }
 
-        await db_addTicketInfo(ticketInfoPay);
-        await db_addTicketInfo(ticketInfoCollect);
+        // mm - si es un ticket para mi, dependiendo si es cobrar o pagar lo agrego
+        if (isMe (idToUser) && ticketType == TICKET_TYPE_PAY ) await db_addTicketInfo(ticketInfoPay);
+        if (isMe (idToUser) && ticketType == TICKET_TYPE_COLLECT ) await db_addTicketInfo(ticketInfoCollect);
+
+        // mm - si no es un ticket para mi agrego los 2 registros de cobro y pago
+        if (!isMe(idToUser))
+        { await db_addTicketInfo(ticketInfoPay);
+          await db_addTicketInfo(ticketInfoCollect);
+        }
 
         // mm - agrego que tipo es personal-negocio,etc
         // mm primero genero un registro para un usuario y luego para el otro
@@ -208,11 +222,15 @@ const NewTicket = ({ navigation, route }) => {
         ticketInfoUseType.info.useType = useType;
         await db_addTicketInfo(ticketInfoUseType);
 
-        // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
-        ticketInfoUseType = new TICKET_INFO_USE_TYPE();
-        ticketInfoUseType.idTicket = idTicket;
-        ticketInfoUseType.idUser = idToUser;
-        await db_addTicketInfo(ticketInfoUseType);
+        // mm - si el ticket es para mi no le agrego la info para el usuario destinatario
+        if (!isMe(idToUser))
+        {
+          // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
+          ticketInfoUseType = new TICKET_INFO_USE_TYPE();
+          ticketInfoUseType.idTicket = idTicket;
+          ticketInfoUseType.idUser = idToUser;
+          await db_addTicketInfo(ticketInfoUseType);
+        }
 
         // mm - creo status inicial
         let data = new TICKET_LOG_DETAIL_STATUS();
@@ -220,7 +238,7 @@ const NewTicket = ({ navigation, route }) => {
         data.idTicket = idTicket;
         data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
         data.idUserFrom = profile.idUser;
-        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
+        data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
         data.data.amount = ticketAmount;
         data.message = isTicketOpen
           ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
@@ -233,7 +251,7 @@ const NewTicket = ({ navigation, route }) => {
         data.idTicket = idTicket;
         data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
         data.idUserFrom = profile.idUser;
-        data.idUserTo = idToUser; // mm - guardo para poder filtrar en los eventos del log
+        data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
         data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
         data.data.dueDate = dueDate;
 
@@ -258,7 +276,8 @@ const NewTicket = ({ navigation, route }) => {
         ticket.metadata.externalReference = ticketRef;
         ticket.idUserCreatedBy = profile.idUser;
         ticket.idUserFrom = profile.idUser;
-        ticket.idUserTo = idToUser;
+        // mm - si es para mi no se lo agrego a nadie
+        ticket.idUserTo = isMe (idToUser) ? "" : idToUser;
         ticket.idTicketGroupBy = idTicketGroupBy;
         ticket.idTicketGroup = idTicketGroup;
         ticket.collectionProcedure = isCollectProcedure
@@ -271,9 +290,7 @@ const NewTicket = ({ navigation, route }) => {
           showToast.error("Existió un error al crear el ticket, por favor verifica la información y vuelve a intentar");
           return;
         }
-
-        
-      }
+      //}
     }
 
     setLoading(false);

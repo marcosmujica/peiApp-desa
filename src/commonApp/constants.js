@@ -79,6 +79,12 @@ export const TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_AMOUNT = "amount"
 export const TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_REF = "ref"
 export const TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_PAY_INFO = "payInfo"
 
+export const TICKET_REPEAT_STATUS_PAUSED = "paused"
+export const TICKET_REPEAT_STATUS_CANCELED = "canceled"
+export const TICKET_REPEAT_STATUS_PLAY = "play"
+export const TICKET_REPEAT_STATUS_STOP = "stop"
+export const TICKET_REPEAT_STATUS_FINISHED = "finished"
+
 export const TICKET_DETAIL_STATUS = [
   { code: TICKET_DETAIL_DEFAULT_STATUS, name:"Pendiente", system: true, user: false, admin: false, editable:false},
   { code: TICKET_DETAIL_ACCEPTED_STATUS, name:"Aceptado", system: false, user: true, admin: false, editable: false},

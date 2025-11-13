@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, tStyles } from '../common/theme';
 import  "../commonApp/global"
 import {getProfile, initProfile, isLogged} from '../commonApp/profile';
-import {recoveryAllContacts} from '../commonApp/contacts';
+
 import { db_userAccess } from '../commonApp/database';
 import Loading from "../components/Loading";
 
@@ -54,23 +54,11 @@ const Welcome = ({ navigation }) => {
 
     const checkLogin = async () =>
   {
-    setLoading (true)
-    let _profile = await initProfile()
-    console.log (_profile)
-    try{
-      recoveryAllContacts (_profile.phonePrefix)
-    }catch (e){console.log ("error al leer los contactos en welcome: " + JSON.stringify(e))}
-    
-    setLoading (false)
-
-    if (isLogged())
+    if (!await initProfile())
     {
-      navigation.navigate('MainScreen')
+      try{navigation.navigate('PreLogin')}catch(e){console.log(e)}
     }
-    else
-    {
-    try{navigation.navigate('PreLogin')}catch(e){console.log(e)}
-    }
+    else {navigation.navigate('MainScreen')}
   }
   
   checkLogin()  

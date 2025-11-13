@@ -1,5 +1,5 @@
 import { DB } from "./DB";
-import {DB_REMOTE, RATING, OTP, LOCAL_PROFILE, USER, _ACCESS} from "./dataTypes"
+import {DB_REMOTE, LOCAL, RATING, OTP, LOCAL_PROFILE, USER, _ACCESS} from "./dataTypes"
 import { getProfile } from './profile';
 import { Platform } from 'react-native';
 import dbInstance from './dbInstance';
@@ -9,6 +9,7 @@ import dbChanges from './DBChanges';
 
 export const db_OTP = "otp"
 export const db_TICKET = "ticket"
+export const db_LOCAL = "local"
 export const db_TICKET_CHAT = "ticket_chat"
 export const db_TICKET_LOG_STATUS = "ticket_log_status"
 export const db_USER = "user"
@@ -39,14 +40,21 @@ export async function db_initListener()
 export async function db_getLocalProfile ()
 {
     try{
-        let aux = await db_get(db_PROFILE, "profile")
-        if (aux == false)
+        let aux = await db_getAll(db_PROFILE)
+
+        return (aux.length == 0 ? false : aux[0])
+
+        /*if (local.length == 0)
+        {
+            return (new LOCAL_PROFILE())
+        }else
         {
             let auxProfile = new LOCAL_PROFILE()
             await db_add(db_PROFILE, "profile", auxProfile)
             return (auxProfile)
+        }
         }    
-        return (aux)
+        return (aux)*/
     }
     catch (e) {console.log ("Error db_getLocalProfile")
         console.log (e)
@@ -121,6 +129,9 @@ export async function db_getTicketLogByStatus(idTicket, idStatus, sortBy="TS", o
 }
 //{ return (await db_find (db_TICKET_LOG_STATUS, {idTicket: {$eq: idTicket}, idStatus: {$eq: idStatus}}, ['_id', 'idUser', 'idStatus', 'TS', 'note', 'amount', 'message'], null, "", null))}
 
+export async function db_addRepeatTicket (idRepeat, data)
+{return (await db_add (db_TICKET_REPEAT, idRepeat, data))}   
+
 export async function db_addTicketChat(data)
 {return (await db_add (db_TICKET_CHAT, null, data))}   
 
@@ -174,6 +185,9 @@ export async function db_updateTicketInfo (idTicket, idUser, type, data)
 export async function db_getAllTickets ()
 { return (await db_getAll (db_TICKET))}
 
+export async function db_getAllTicketRepeat ()
+{ return (await db_getAll (db_TICKET_REPEAT))}
+
 export async function db_getAllTicketItem (data={})
 { return (await db_find (db_TICKET_VIEW, data))}
 
@@ -189,10 +203,10 @@ export async function db_getTicketsIdGroupBy (idGroupBy)
 export async function db_getTicketsViewIdGroupBy (idGroupBy)
 { return (await db_find (db_TICKET_VIEW, {idGroupBy: idGroupBy}))}
 
-
 export async function db_saveProfile(profile)
 {
-    return await db_add (db_PROFILE, "profile", profile)
+    // mm - le cambio al id el + porque da problemas
+   return await db_add (db_PROFILE, "profile_" + profile.phone.replace(/\+/g, ""), profile)
 }
 
 export async function db_setNewUser(id, data) {

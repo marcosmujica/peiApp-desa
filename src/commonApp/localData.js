@@ -63,35 +63,155 @@ class LocalData {
 
     async getGroupList ()
     {
-        //if (!this.readyGroups)
-        {
-            let groupsList = await db_getAllGroups ()
-            this.groups = groupsList.sort((a, b) => {
-                // Manejar casos donde name podría ser undefined o null
-                const nameA = a.name || '';
-                const nameB = b.name || '';
-                // Si ambos empiezan o no empiezan con ~, ordenar alfabéticamente
-                return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
-            })
-            this.readyGroups = true
+        // mm - busco los tickets con isopen=true y seen=false y los sumo y los agrego a la info de los grupos
+        try{
+            //if (!this.readyGroups)
+            {
+                let tickets = await this.getTicketList()
+
+                // Filtrar tickets con seen=false, isOpen=true y idGroup no vacío
+                const filteredTickets = tickets.filter(ticket => 
+                    ticket.seen === false && 
+                    ticket.isOpen === true && 
+                    ticket.idGroup && 
+                    ticket.idGroup !== ""
+                );
+
+                // Agrupar por idGroup y calcular estadísticas
+                const groupStats = {};
+                filteredTickets.forEach(ticket => {
+                    const groupId = ticket.idGroup;
+                    
+                    if (!groupStats[groupId]) {
+                        groupStats[groupId] = {
+                            idGroup: groupId,
+                            unseenCount: 0,
+                            ts: null
+                        };
+                    }
+                    
+                    // Incrementar contador de no vistos
+                    groupStats[groupId].unseenCount++;
+                    
+                    // Actualizar fecha máxima
+                    const ticketDate = new Date(ticket.ts);
+                    if (!groupStats[groupId].ts || ticketDate > new Date(groupStats[groupId].ts)) {
+                        groupStats[groupId].ts = ticket.ts;
+                    }
+                });
+
+                // Convertir objeto a array para facilitar uso
+                const groupStatsList = Object.values(groupStats);
+
+                let groupsList = await db_getAllGroups ()
+                // Enriquecer grupos con estadísticas de tickets
+                const enrichedGroups = groupsList.map(group => {
+                    const stats = groupStats[group.id];
+                    return {
+                        ...group,
+                        unseenCount: stats ? stats.unseenCount : 0,
+                        latestTicketDate: stats ? new Date(stats.ts) : group.TSLastUpdate
+                    };
+                });
+
+                // Ordenar por fecha más reciente del ticket del grupo (descendente)
+                this.groups = enrichedGroups.sort((a, b) => {
+                    // Si un grupo no tiene tickets, va al final
+                    if (!a.latestTicketDate && !b.latestTicketDate) {
+                        // Si ambos no tienen tickets, ordenar alfabéticamente
+                        const nameA = a.name || '';
+                        const nameB = b.name || '';
+                        return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
+                    }
+                    if (!a.latestTicketDate) return 1;
+                    if (!b.latestTicketDate) return -1;
+                    
+                    // Ordenar por fecha más reciente (descendente)
+                    return new Date(b.latestTicketDate) - new Date(a.latestTicketDate);
+                });
+                
+                this.readyGroups = true
+            }
+            return this.groups
         }
-        return this.groups
+        catch (e) {console.log ("Error getGroupList")
+            console.log (e)
+        }
     }
     async getGroupByListByIdGroup (idGroup)
     {
-        //if (!this.readyGroups)
-        {
-            let groupsByList = await db_getGroupsByByIdGroup (idGroup)
-            this.groupsBy = groupsByList.sort((a, b) => {
-                // Manejar casos donde name podría ser undefined o null
-                const nameA = a.name || '';
-                const nameB = b.name || '';
-                // Si ambos empiezan o no empiezan con ~, ordenar alfabéticamente
-                return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
-            })
-            this.readyGroups = true
+                // mm - busco los tickets con isopen=true y seen=false y los sumo y los agrego a la info de los grupos
+        try{
+            //if (!this.readyGroups)
+            {
+                let tickets = await this.getTicketList()
+
+                // Filtrar tickets con seen=false, isOpen=true y idGroup no vacío
+                const filteredTickets = tickets.filter(ticket => 
+                    ticket.seen === false && 
+                    ticket.isOpen === true && 
+                    ticket.idGroupBy && 
+                    ticket.idGroupBy !== ""
+                );
+
+                // Agrupar por idGroup y calcular estadísticas
+                const groupStats = {};
+                filteredTickets.forEach(ticket => {
+                    const groupId = ticket.idGroupBy;
+                    
+                    if (!groupStats[groupId]) {
+                        groupStats[groupId] = {
+                            idGroupBy: groupId,
+                            unseenCount: 0,
+                            ts: null
+                        };
+                    }
+                    
+                    // Incrementar contador de no vistos
+                    groupStats[groupId].unseenCount++;
+                    
+                    // Actualizar fecha máxima
+                    const ticketDate = new Date(ticket.ts);
+                    if (!groupStats[groupId].ts || ticketDate > new Date(groupStats[groupId].ts)) {
+                        groupStats[groupId].ts = ticket.ts;
+                    }
+                });
+
+                // Convertir objeto a array para facilitar uso
+                const groupStatsList = Object.values(groupStats);
+                let groupsList = await db_getGroupsByByIdGroup (idGroup)
+                // Enriquecer grupos con estadísticas de tickets
+                const enrichedGroups = groupsList.map(group => {
+                    const stats = groupStats[group.id];
+                    return {
+                        ...group,
+                        unseenCount: stats ? stats.unseenCount : 0,
+                        latestTicketDate: stats ? new Date(stats.ts) : group.TSLastUpdate
+                    };
+                });
+
+                // Ordenar por fecha más reciente del ticket del grupo (descendente)
+                this.groups = enrichedGroups.sort((a, b) => {
+                    // Si un grupo no tiene tickets, va al final
+                    if (!a.latestTicketDate && !b.latestTicketDate) {
+                        // Si ambos no tienen tickets, ordenar alfabéticamente
+                        const nameA = a.name || '';
+                        const nameB = b.name || '';
+                        return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
+                    }
+                    if (!a.latestTicketDate) return 1;
+                    if (!b.latestTicketDate) return -1;
+                    
+                    // Ordenar por fecha más reciente (descendente)
+                    return new Date(b.latestTicketDate) - new Date(a.latestTicketDate);
+                });
+                
+            }
+            return this.groups
         }
-        return this.groupsBy
+        catch (e) {console.log ("Error getGroupList")
+            console.log (e)
+        }
     }
 
     getContactList ()

@@ -107,7 +107,6 @@ const Profile_Info = ({ navigation, route }) => {
         profile.about = about;
         profile.email = email;
         profile.sex = sex;
-
         await setProfile(profile);
         //await db_addUserConfig(profile.idUser, new USER_CONFIG());
         //await setInitGroupBy();

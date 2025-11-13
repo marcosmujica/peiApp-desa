@@ -26,6 +26,7 @@ import {
 import ImgAvatar from "../components/ImgAvatar";
 import { getProfile, isMe } from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
+import {recoveryAllContacts} from '../commonApp/contacts';
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
 import localData, { EVENT_LOCAL_LISTVIEW_UPDATED } from '../commonApp/localData';
@@ -171,6 +172,7 @@ const Home = ({ navigation }) => {
   useEffect(() => {
     // subscribe to new-doc events to reload list
 
+    getContacts ()
     checkDB();
     loadData();
 
@@ -193,6 +195,15 @@ const Home = ({ navigation }) => {
     };
   }, []);
 
+  function getContacts ()
+  {
+    try{
+      recoveryAllContacts (profile.phonePrefix)
+    }catch (e){
+      console.log ("error al leer los contactos en welcome: " + JSON.stringify(e))
+      console.log (e)
+    }    
+  }
   function searchText(textToSearch) {
     const filteredTickets = !textToSearch ? dataTicket : dataTicket.filter((obj) => obj.title && obj.title.toLowerCase().includes(textToSearch.toLowerCase()));
     // Ordenar por timestamp descendente
@@ -260,8 +271,8 @@ const Home = ({ navigation }) => {
                 <BadgeBtn
                   items={[
                     { id: FILTER_TICKETS_ALL, title: "Todos", active: filterTicket == FILTER_TICKETS_ALL, onClick: () => filterTicketByStatus(FILTER_TICKETS_ALL) },
-                    { id: FILTER_TICKETS_OPEN, title: "Abiertos", active: filterTicket == FILTER_TICKETS_OPEN, onClick: () => filterTicketByStatus(FILTER_TICKETS_OPEN) },
-                    { id: FILTER_TICKETS_CLOSE, title: "Cerrados", active: filterTicket == FILTER_TICKETS_CLOSE, onClick: () => filterTicketByStatus(FILTER_TICKETS_CLOSE) },
+                    { id: FILTER_TICKETS_OPEN, title: "Pendientes", active: filterTicket == FILTER_TICKETS_OPEN, onClick: () => filterTicketByStatus(FILTER_TICKETS_OPEN) },
+                    { id: FILTER_TICKETS_CLOSE, title: "Cumplidos", active: filterTicket == FILTER_TICKETS_CLOSE, onClick: () => filterTicketByStatus(FILTER_TICKETS_CLOSE) },
                   ]}
                   idActive={filterTicket}
                 />
@@ -297,9 +308,7 @@ const TicketItem = ({ item, idUser, onClick, idProfile }) => {
   
   return (
     <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
-      <TouchableOpacity>
-        <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={45} detail={item.idUserTo == "" ? false : true}/>
-      </TouchableOpacity>
+        <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={50} detail={item.idUserTo == "" ? false : true}/>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>

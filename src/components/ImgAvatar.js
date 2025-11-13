@@ -34,14 +34,8 @@ export default function ImgAvatar({id = "", name = "", cache = true, size = 50, 
     }
   }
 
-  return (
-    <View
-      style={[
-        styles.avatar,
-        { width: numericSize, height: numericSize, borderRadius: numericSize / 2 },
-      ]}
-    >
-      <TouchableOpacity onPress={showDetail} disabled={!detail} >
+  const renderContent = () => (
+    <>
       {hasRemoteImage ? (
         <Image
           source={{ uri: imageUrl }}
@@ -60,7 +54,25 @@ export default function ImgAvatar({id = "", name = "", cache = true, size = 50, 
           transition={300}
         />
       )}
-      </TouchableOpacity>
+    </>
+  );
+
+  return (
+    <View
+      style={[
+        styles.avatar,
+        { width: numericSize, height: numericSize, borderRadius: numericSize / 2 },
+      ]}
+    >
+      {detail ? (
+        <TouchableOpacity onPress={showDetail} activeOpacity={0.7}>
+          {renderContent()}
+        </TouchableOpacity>
+      ) : (
+        <View>
+          {renderContent()}
+        </View>
+      )}
     </View>
   );
 }

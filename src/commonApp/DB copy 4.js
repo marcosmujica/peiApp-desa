@@ -491,7 +491,6 @@ export class DB {
         if (this.emitEvent)
         {
           let event = new DB_EVENT ()
-          debugger
           event.table = this.dbName
           event._id = doc._id
           event._rev = doc._rev

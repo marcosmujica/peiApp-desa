@@ -16,14 +16,14 @@ const AlertModal = ({setModal}) => {
     const openModal = () => {
         Animated.timing(scale, {
             toValue: 1,
-            duration:100,
+            duration:0,
             useNativeDriver: true
         }).start();
     }
 
     const closeModal = (option, callback) => {
         Animated.timing(scale, {
-            toValue: 0,
+            toValue: 1,
             duration: 0,
             useNativeDriver: true
         }).start(() => { 

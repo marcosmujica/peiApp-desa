@@ -57,7 +57,6 @@ const GroupEdit = ({ navigation, route }) => {
       setGroupData(aux);
       setIsSearch (false)
 
-      debugger
       if (usersList !=undefined)
       {
         for (let i=0;i<usersList.length;i++)

@@ -10,20 +10,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import OtpTextInput from "react-native-text-input-otp";
 import { colors, fonts, tStyles } from "../common/theme";
-import { firstLogging, getProfile } from "../commonApp/profile";
+import { setProfile, firstLogging, getProfile, saveProfile } from "../commonApp/profile";
 import { db_checkOTP } from "../commonApp/database";
 import AppContext from "../context/appContext";
 import Loading from "../components/Loading";
 import { useState } from "react";
 import { getStyles } from "../styles/home";
 
-var firstTime = true;
-var profile;
-
-const OTPScreen = ({ navigation }) => {
+const OTPScreen = ({ navigation, route }) => {
   const [visibleBtn, setVisibleBtn] = useState(true);
   const [loading, setLoading] = useState(false);
   const { showAlertModal } = React.useContext(AppContext);
+  let profile = route.params["profile"];
 
   const mode = useColorScheme();
 
@@ -40,10 +38,10 @@ const OTPScreen = ({ navigation }) => {
       try {
         setLoading(true);
         setVisibleBtn(false);
-        debugger
         let aux = await db_checkOTP(profile.phone, otp);
         
         if (aux) {
+          await setProfile (profile)
           await firstLogging();
           navigation.navigate("Profile_Info", { idUser: null });
         } else {
@@ -66,8 +64,6 @@ const OTPScreen = ({ navigation }) => {
   }
 
   const [otp, setOtp] = React.useState("");
-
-  profile = getProfile();
 
   return (
     <SafeAreaView style={getStyles(mode).container}>

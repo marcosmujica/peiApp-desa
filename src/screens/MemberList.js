@@ -171,8 +171,8 @@ const MemberList = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={getStyles(mode).container}>
-      <View>
+    <SafeAreaView style={getStyles(mode).container} edges={['top', 'left', 'right','bottom']}>
+      <View style={{ flex: 1 }}>
         {/* Top Bar  */}
             <TitleBar title="Contactos" subtitle="Max. 50 contactos" goBack={true} options={[{name: "search", onClick: ()=>setIsSearch(!isSearch)}]}/>
 
@@ -195,6 +195,7 @@ const MemberList = ({ navigation, route }) => {
                   />
                 )}
                 contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center', flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
                   />
                   <TouchableOpacity
                 onPress={() => checkSave()}
@@ -204,7 +205,7 @@ const MemberList = ({ navigation, route }) => {
                   </TouchableOpacity>
                 </View>
                 {/* Contacts Listing */}
-        <View style={{ paddingHorizontal: 15, paddingTop: 15 }}>
+        <SafeAreaView style={{ flex: 1, paddingHorizontal: 15, paddingTop: 15 }} edges={['bottom']}>
           
           <FlatList
             showsVerticalScrollIndicator={false}
@@ -213,14 +214,16 @@ const MemberList = ({ navigation, route }) => {
             renderItem={({ item }) => (
               <ContactItem item={item} addContactToList={addContactToList} />
             )}
-            contentContainerStyle={{ paddingBottom: 60 }}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
           />
           {/*{groupData.length == 0 && (
             <Text style={getStyles(mode).chatUsername}>
               No se encontraron resultados.
             </Text>
           )}*/}
-        </View>
+        </SafeAreaView>
       </View>
       <Loading loading={loading} title="" />
       {/* COntinue Button */}
@@ -230,14 +233,14 @@ const MemberList = ({ navigation, route }) => {
 
 const ContactItem = ({ addContactToList, item }) => {
   const mode = useColorScheme();
-
+//console.log (item)
   return (
     <TouchableOpacity
       onPress={() => addContactToList(item)}
       style={getStyles(mode).chatContainer}
     >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <ImgAvatar id={item.id} nombre={item.name} size={40} />
+        <ImgAvatar id={item.phone} nombre={item.name} size={40} />
         <View style={{ flex: 1, marginLeft: 10, justifyContent: "center" }}>
           <Text style={getStyles(mode).normalText}>
             {ellipString(item.name, 30)}

@@ -27,7 +27,7 @@ import { getProfile, isMe } from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import { displayTime, ellipString } from "../common/helpers";
 import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
-import localData, { EVENT_LOCAL_DATA_CHANGE } from "../commonApp/localData";
+import localData, { EVENT_LOCAL_LISTVIEW_UPDATED } from "../commonApp/localData";
 import GroupInfo from "./GroupInfo";
 
 const HomeGroups = ({ navigation }) => {
@@ -47,14 +47,15 @@ const HomeGroups = ({ navigation }) => {
   ];
 
   useEffect(() => {
-    // subscribe to new-doc events to reload list
+    const off = localData.onEvent(EVENT_LOCAL_LISTVIEW_UPDATED, (doc) => {
+      loadData()
+    });
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
 
-    loadData();
-
-    return () => {
-      // cleanup both listeners
-    };
-  }, []);
+    return unsubscribe;
+  }, [navigation]);
 
   function searchText(textToSearch) {
     setDataListSearch(!textToSearch ? dataTicket : dataTicket.filter((obj) => obj.name && obj.name.toLowerCase().includes(textToSearch.toLowerCase())));
@@ -114,23 +115,35 @@ const GroupItem = ({ item, onClick }) => {
   const colorScheme = useColorScheme();
   return (
     <TouchableOpacity onPress={() => onClick(item)} style={getStyles(colorScheme).chatContainer}>
-        <ImgAvatar id={item.id} size={45} detail={false}/>
+        <ImgAvatar id={item.id} size={50} detail={false}/>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
-        {/* Primera línea: title (izquierda) - ts (derecha) */}
+        {/* Primera línea: title (izquierda) - fecha y badge (derecha) */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <Text style={[getStyles(colorScheme).listMainText, { fontWeight: "500" }]} numberOfLines={1}>
             {ellipString(item.name, 35)}
           </Text>
-          <Text style={[getStyles(colorScheme).listSecondText]}>
-                      {formatDateToText(item.TSCreated)}
-                    </Text>
-         
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={[getStyles(colorScheme).listSecondText]}>
+              {formatDateToText(item.latestTicketDate)}
+            </Text>
+            
+          </View>
         </View>
+        {/* Segunda línea: información de contactos y total de tickets */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           {item.groupUsers != undefined && 
             <Text style={[getStyles(colorScheme).listSecondText, { fontWeight: "500" }]} numberOfLines={1}>
             {item.groupUsers.length} Contactos
           </Text>}
+          {/* Badge para tickets no vistos */}
+            {item.unseenCount > 0 && (
+              <View style={getStyles(colorScheme).activeBadge}>
+                <Text style={getStyles(colorScheme).badgeText}>
+                  {item.unseenCount}
+                </Text>
+              </View>
+            )}
+          
         </View>
       </View>
     </TouchableOpacity>

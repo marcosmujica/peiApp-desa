@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import {TICKET_INFO_TYPE_COLLECT, TICKET_USE_TYPE_PERSONAL, TICKET_LOG_DETAIL_TYPE_STATUS, TICKET_DETAIL_DEFAULT_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_SINGLE, TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE, TICKET_INFO_TYPE_PAY_PLANNED} from "./constants";
+import {TICKET_FRECUENCY_MONTHLY, TICKET_REPEAT_STATUS_PAUSED, TICKET_INFO_TYPE_COLLECT, TICKET_USE_TYPE_PERSONAL, TICKET_LOG_DETAIL_TYPE_STATUS, TICKET_DETAIL_DEFAULT_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_SINGLE, TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE, TICKET_INFO_TYPE_PAY_PLANNED} from "./constants";
 import { v4 as uuidv4 } from "uuid";
 
 
@@ -55,30 +55,43 @@ export class GROUP_BY_TICKETS {
 export class TICKET_REPEAT{
   constructor()
   {
-    this.idTicketRepeat = ""
-    this.idTicketGroup = ""
-    this.idTicketGroupBy = ""
-    this.TSCreated = new Date()
-    this.enabled = false
+    this.idTicketRepeat = uuidv4()
+    this.status = TICKET_REPEAT_STATUS_PAUSED
     this.frecuency = TICKET_FRECUENCY_MONTHLY
     this.TSStart = new Date(),
     this.TSEnd = new Date(),
+    this.confirmed = false // mm - si el usuario confirmo la nueva repeticion
     this.TSNextDueDate = new Date()
-    this.currency = ""
-    this.amount = 0
-    this.title = ""
-    this.note = ""
-    this.category = ""
-    this.metadata = {
-      notes: "",
-      externalReference: "" // mm - referencia externa del ticket por ej factura_001
-    }
-    this.paymentInfo = {
-      payInfo: "",
-      paidAt: "",
-      paymentMethod: "",
-      transactionId: ""
-    }
+    this.TSLastExecution = new Date()
+    this.groupUsers = []
+    this.idUserFrom = "", //mm - quien origina el ticket
+    this.idUserCreatedBy = "", // mm - id del usuario que creo el ticket
+    this.name = ""
+    this.ticket = {
+      type : "ticket", // mm - tipo de ticket
+      idTicketGroup: "", // mm - id del grupo a quien pertenece el usuario que creo el ticket
+      idTicketGroupBy: "", // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
+      currency : "", // mm - moneda del ticket
+      amount : 0, // mm - monto actual del ticket por si cambio 
+      netAmount : 0,  // mm - ganancia neta del ticket, sacando los gastos
+      useType : TICKET_USE_TYPE_PERSONAL, // mm - si el ticket es personal, para el negocio o se comparte
+      purchaseType : "undefined", // mm - si la compra es necesaria o impulsiva
+      collectionProcedure : true, // mm - si se tiene que ejecutar un metodo de cobro para el ticket
+      way : TICKET_TYPE_COLLECT, // mm - si el ticket es de cobro o de pago
+      ticketType : TICKET_TYPE_SINGLE,  /// mm - si es de un ticket recurrente o uno solo
+      title : "", // mm - titulo del ticket
+      note : "", // mm - descripcion del ticket
+      notePrivate : "", // mm - descripcion privada del ticket, para guardar informacion que solo ve el creador
+      metadata : {
+        notes: "", // mm - info general del ticket
+        externalReference: "" // mm - referencia externa del ticket por ej factura_001
+      },
+      paymentInfo : {
+        paidAt: "", 
+        paymentMethod: "", // mm - metodo del pago credito, debito, cash, etc
+        transactionId: "" // mm - id de la transaccion 
+      }
+  }
     Object.seal(this);
   }
 }
@@ -157,7 +170,6 @@ export class TICKET {
   {
     this.idTicket = "" 
     this.type = "ticket" // mm - tipo de ticket
-    this.nameTicketGroup = "" // mm - nombre del grupoby
     this.idTicketGroup = "" // mm - id del grupo a quien pertenece el usuario que creo el ticket
     this.idTicketGroupBy = "" // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
     this.idUserFrom = "" //mm - quien origina el ticket
@@ -183,6 +195,8 @@ export class TICKET {
     this.note = "" // mm - descripcion del ticket
     this.notePrivate = "" // mm - descripcion privada del ticket, para guardar informacion que solo ve el creador
     this.TSDueDate = new Date() // mm - cuando vence el ticket
+    this.source = "app" // mm - por que medio se creo el ticket, por ej desde api externa
+    this.sourceInfo = "" // mm - info puntual que el source quiera agregar
     this.metadata = {
       notes: "", // mm - info general del ticket
       externalReference: "" // mm - referencia externa del ticket por ej factura_001
@@ -260,10 +274,17 @@ export class USER_ACCESS {
   }
 }
 
+export class LOCAL{
+  constructor (){
+    this.phone = ""
+    Object.seal(this)
+  }
+}
+
 export class LOCAL_PROFILE {
   constructor() {
-    this.idUser = "";
-    this.internalId = "";
+    this.idUser = ""
+    this.internalId = uuidv4(); // mm - id unico que se utiliza para referenciar al usuario
     this.name = "";
     this.about = ""
     this.email = ""

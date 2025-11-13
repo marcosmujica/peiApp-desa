@@ -9,17 +9,24 @@ import SlideOptions from "../components/SlideOptions";
 import AppContext from "../context/appContext";
 import { displayTime, ellipString } from "../common/helpers";
 import SearchBar from "../components/SearchBar";
+import BadgeBtn from "../components/BadgeBtn";
+import {
+  db_getAllTicketRepeat
+} from "../commonApp/database";
 import ImgAvatar from "../components/ImgAvatar";
 import { getProfile, isMe } from "../commonApp/profile";
+import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
+import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
+import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
 import localData, { EVENT_LOCAL_DATA_CHANGE } from '../commonApp/localData';
 
-const HomeContacts = ({ navigation }) => {
+const HomeRepeat = ({ navigation }) => {
   const colorScheme = useColorScheme();
   const { options, setOptions } = React.useContext(AppContext);
   const [refreshing, setRefreshing] = useState(false);
 
   const [dataListSearch, setDataListSearch] = React.useState([]); // mm - datos a ser visualizados
-  const [dataContact, setDataContact] = React.useState([]); // mm - datos filtrados por los filtros
+  const [dataList, setDataList] = React.useState([]); // mm - datos filtrados por los filtros
 
   let profile = getProfile();
 
@@ -34,7 +41,7 @@ const HomeContacts = ({ navigation }) => {
   }, []);
 
   function searchText(textToSearch) {
-    setDataListSearch(!textToSearch ? dataContact : dataContact.filter((obj) => obj.name && obj.name.toLowerCase().includes(textToSearch.toLowerCase())));
+    setDataListSearch(!textToSearch ? dataList : dataList.filter((obj) => obj.name && obj.name.toLowerCase().includes(textToSearch.toLowerCase())));
   }
 
   async function goToUser(idUser) {
@@ -53,10 +60,10 @@ const HomeContacts = ({ navigation }) => {
 
       setRefreshing(true);
 
-      let contactList =localData.getContactList() 
-      contactList = contactList.map((item, index) => ({ ...item, id: index + 1 }))
-      setDataContact ([...contactList]);
-      setDataListSearch ([...contactList])
+      debugger
+      let repeatList = await db_getAllTicketRepeat() 
+      setDataList ([...repeatList]);
+      setDataListSearch ([...repeatList])
 
     } catch (e) {
       console.log("error en loaddata");
@@ -76,8 +83,8 @@ const HomeContacts = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           data={dataListSearch}
           keyExtractor={(item, index) => `${item.contactId}-${index}`}
-          renderItem={({ item }) => <UserItem item={item} idUser={profile.idUser} onClick={goToUser} />}
-          contentContainerStyle={{ paddingBottom: 0 }} // Ajusta el valor según el espacio necesario
+          renderItem={({ item }) => <RepeatItem item={item} idUser={profile.idUser} onClick={goToUser} />}
+          contentContainerStyle={{ paddingBottom: 200 }} // Ajusta el valor según el espacio necesario
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
         />
@@ -92,28 +99,40 @@ const HomeContacts = ({ navigation }) => {
   );
 };
 
-const UserItem = ({ item, onClick }) => {
+const RepeatItem = ({ item, onClick }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   
   return (
-    <TouchableOpacity onPress={() => onClick(item.contactId)} style={getStyles(colorScheme).chatContainer}>
-        <ImgAvatar id={item.contactId} size={50} detail={true}/>
-      <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
-        {/* Primera línea: title (izquierda) - ts (derecha) */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-          <Text style={[getStyles(colorScheme).listMainText, {fontWeight:"500"}]} numberOfLines={1}>
-            {ellipString(item.name, 30)}
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                    <Text style={[getStyles(colorScheme).listSecondText, { fontWeight: "500" }]} numberOfLines={1}>
-                    {item.contactId}
-                  </Text>
-                </View>
-      </View>
-    </TouchableOpacity>
+        
+          <View style={{ flex: 1, paddingTop:20, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
+            {/* Primera línea: title (izquierda) - fecha y badge (derecha) */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <Text style={[getStyles(colorScheme).listMainText, { fontWeight: "500" }]} numberOfLines={1}>
+                {ellipString(item.name, 35)}
+              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={[getStyles(colorScheme).listSecondText]}>
+                  {formatDateToText(item.TSLastExecution)}
+                </Text>
+                
+              </View>
+            </View>
+            {/* Segunda línea: información de contactos y total de tickets */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                {item.groupUsers.length >0 && <Text style={[getStyles(colorScheme).listSecondText, { fontWeight: "500" }]} numberOfLines={1}>  
+                 {item.groupUsers.length} Contactos
+              </Text>}
+              {/* Badge para tickets no vistos */}
+                  <View >
+                    <Text style={[getStyles(colorScheme).sectionTitle, {padding:5}]}>
+                      <Fontisto name="pause" size={10}/>
+                    </Text>
+                  </View>
+              
+            </View>
+          </View>
   );
 };
 
-export default HomeContacts;
+export default HomeRepeat;

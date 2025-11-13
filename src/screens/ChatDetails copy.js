@@ -97,7 +97,6 @@ const ChatDetails = ({ navigation, route }) => {
 
       let idUserTo = ticket.idUserFrom == profile.idUser ? ticket.idUserTo : ticket.idUserFrom
       setIdUserTo (idUserTo)
-      debugger
       setTicketUsername( getContactName (idUserTo).name)
 
       let data = await db_getTicketChat(idTicket);

@@ -60,7 +60,6 @@ export class MediaPicker {
             // support both shapes: assets[] or single uri
             const fileAsset = (finalResult.assets && finalResult.assets[0]) || { uri: finalResult.uri };
             console.log (fileAsset)
-debugger
             // --- size check (KB) ---
             let sizeBytes = null;
             if (fileAsset.fileSize != null) sizeBytes = fileAsset.fileSize;
@@ -101,7 +100,6 @@ debugger
             }
 
             // send to server
-            debugger
               // Agregar el ID de usuario
                   formData.append("idUser", this.idUser);
 

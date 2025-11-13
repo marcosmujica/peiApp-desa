@@ -176,7 +176,7 @@ const GroupList = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={getStyles(mode).container}>
+    <SafeAreaView style={getStyles(mode).container} edges={['top', 'left', 'right', 'bottom']}>
       <View>
         {/* Top Bar  */}
             <TitleBar title="Contactos del Grupo" subtitle="Max. 50 contactos" goBack={true} options={[{name: "search", onClick: ()=>setIsSearch(!isSearch)}]}/>
@@ -200,6 +200,7 @@ const GroupList = ({ navigation, route }) => {
                   />
                 )}
                 contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center', flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
                   />
                   <TouchableOpacity
                 onPress={() => checkSave()}
@@ -219,6 +220,8 @@ const GroupList = ({ navigation, route }) => {
               <ContactItem item={item} addContactToList={addContactToList} />
             )}
             contentContainerStyle={{ paddingBottom: 60 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
           />
           {/*{groupData.length == 0 && (
             <Text style={getStyles(mode).chatUsername}>

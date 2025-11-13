@@ -11,6 +11,7 @@ import { getStyles } from "../styles/home";
 import { setProfile, getProfile } from '../commonApp/profile';
 import { getPhoneCodeByCountryId, getCountryCodeByIP } from '../commonApp/functions';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { LOCAL_PROFILE } from '../commonApp/dataTypes';
 
 const Login = ({ navigation }) => {
 
@@ -64,18 +65,18 @@ const Login = ({ navigation }) => {
                         return
                     }
                     setLoading (true)
-                    
                     try {
-                        let aux = getProfile()
+                        let aux = new LOCAL_PROFILE()
 
                         aux.phonePrefix  = country.dial_code
                         aux.countryCode = country.code
                         aux.countryName = country.name
                         aux.phone = country.dial_code + auxPhone /// saco los 0 de la izquierda
+                        aux.idUser = aux.phone // mm - le seteo el id del usuario como el phone
 
-                        await setProfile(aux)
+                        //await setProfile(aux)
                         await db_setOTP (aux.phone)
-                        navigation.navigate('OTPScreen')
+                        navigation.navigate('OTPScreen', {profile:aux})
                         setLoading (false)
                     }
                     catch (e) {console.log (e)}

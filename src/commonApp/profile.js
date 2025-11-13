@@ -2,6 +2,7 @@ import {db_addGroupByTicket, db_getLocalProfile, db_saveProfile, db_createIndexe
 import {GROUP_BY_TICKETS} from "./dataTypes"
 import { getUId } from "./functions"
 import {USER_PREFIX_GROUP, MAIN_GROUP_BY_COLLECT, MAIN_GROUP_BY_PAY, MAIN_GROUP_BY_INVESTMENT} from "./constants"
+import { v4 as uuidv4 } from 'uuid';
 
 let _profile = {}
 
@@ -22,21 +23,22 @@ export function getProfile () {
 
 export async function setProfile (doc)
 {
+
     _profile = doc
     return (await saveProfile())
 }
 export function isLogged ()
-{ return _profile.isLogged }
+{return _profile && _profile.isLogged ? _profile.isLogged : false}
 
 export async function saveProfile()
 {
-    console.log ("voy a insertar saveprofile")
     return await db_saveProfile(_profile)
 }
 
 //mm - procedimiento principal que se invoca la primera vez que se crea un nuevo usuario para determinar las funciones iniciales
 export async function firstLogging()
 {
+
     // mm- DEBERIA ENVIAR UN MAIL DE BIENVENIDA
     // mm - DEBERIA NOTIFICAR A OTROS USUARIOS QUE SE AGREGO A LA COMUNIDAD
 

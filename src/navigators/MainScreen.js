@@ -21,7 +21,7 @@ import React, { useEffect } from "react";
 import AppContext from "../context/appContext";
 import { getStyles } from "../styles/common";
 import { BackHandler } from "react-native";
-import { useNavigationState, CommonActions, useFocusEffect } from "@react-navigation/native";
+import { useNavigationState, CommonActions, useFocusEffect, useNavigation } from "@react-navigation/native";
 
 const Tab = createBottomTabNavigator();
 
@@ -76,7 +76,7 @@ const MainScreen = ({ navigation }) => {
           tabBarSelectedIcon: () => (
             <MaterialIcons name="chat" size={20} color={colors.primary} />
           ),
-          headerTitle: (props) => <CustomHeader {...props} navigation={navigation} />,
+          headerTitle: (props) => <CustomHeader {...props} />,
           tabBarBadge: 10,
         }}
       />
@@ -124,7 +124,7 @@ const MainScreen = ({ navigation }) => {
       />
  <Tab.Screen
         name="Repetir"
-        component={Screens.Calls}
+        component={Screens.HomeRepeat}
         options={{
           title: "peiApp",
           tabBarIcon: () => (
@@ -144,14 +144,26 @@ const MainScreen = ({ navigation }) => {
   );
 };
 
-function CustomHeader({ children, navigation }) {
+function CustomHeader({ children }) {
   const mode = useColorScheme();
   const { options, setOptions } = React.useContext(AppContext);
+  const navigation = useNavigation(); // Usar el hook en lugar del prop
 
   const handleAgendaPress = () => {
-    // Acción para el botón de agenda
-    console.log("Navigating to MoneyAgenda");
-    navigation.navigate("MoneyAgenda");
+    try{
+      // Verificar que navigation esté disponible
+      if (!navigation || typeof navigation.navigate !== 'function') {
+        console.warn("Navigation is not available");
+        return;
+      }
+      
+      // Acción para el botón de agenda
+      console.log("Navigating to MoneyAgenda");
+      navigation.navigate("MoneyAgenda");
+    }
+    catch (e) {
+      console.log("Error in handleAgendaPress:", e);
+    }
   };
 
   const handleRegistroPress = () => {

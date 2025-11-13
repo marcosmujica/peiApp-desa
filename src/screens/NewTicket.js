@@ -7,7 +7,7 @@ import { colors, fonts, tStyles } from "../common/theme";
 import ImgAvatar from "../components/ImgAvatar";
 import { getStyles } from "../styles/home";
 import { calculateInstancesBetweenDates, formatDateToStringLong, getMonthName, getDayName } from "../commonApp/functions";
-import { db_TICKET, db_openDB, db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo, db_TICKET_INFO, db_TICKET_LOG_STATUS, db_TICKET_REPEAT } from "../commonApp/database";
+import { db_addRepeatTicket, db_TICKET, db_openDB, db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo, db_TICKET_INFO, db_TICKET_LOG_STATUS, db_TICKET_REPEAT } from "../commonApp/database";
 import "../commonApp/global";
 import { _contacts, getContactName } from "../commonApp/contacts";
 import { _maxContactPerGroup } from "../commonApp/global";
@@ -41,7 +41,7 @@ import {
   REPEAT_WEEKLY
 } from "../commonApp/constants";
 import { showToast } from "../common/toast";
-import { TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE } from "../commonApp/dataTypes";
+import { TICKET_REPEAT, TICKET_INFO_PAY, TICKET_INFO_COLLECT, GROUP_BY_TICKETS, TICKET, TICKET_LOG_DETAIL_STATUS, TICKET_INFO_USE_TYPE } from "../commonApp/dataTypes";
 import { getProfile, isMe } from "../commonApp/profile";
 import CurrencyDropDown from "../components/CurrencyDropDown";
 import DropDownList from "../components/DropDownList";
@@ -168,136 +168,182 @@ const NewTicket = ({ navigation, route }) => {
       return;
     }
 
-    setLoading(true);
-    debugger
-
-    // mm - si el ticket no viene para nadie me lo agrego a mi como usuario
-    if (groupUsersList.length ==0)
+    if (groupUsersList.length >=2)
     {
-      groupUsersList.push ({id:1, name:"", contact: profile.idUser})
+      showAlertModal("Atención", "Se generarán " + groupUsersList.length + " tickets, ¿estás seguro?", {ok:true, cancel: true}, ()=>confirmSave);
+      return;
     }
+    else
+    {await saveInfo()}
 
-    // mm - si no se creo la asociacion de tickets lo creo
-    for (const item of groupUsersList) {
-      let idToUser = item.contact;
-      // mm - para no crearle un ticket al creador del ticket
-      //if (idToUser != profile.idUser) {
-        // mm - necesito volver a crear el ticket cada vez para que no de error
-        
-        let idTicket = uuidv4()
-        // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
-        let ticketInfoPay = new TICKET_INFO_PAY();
-        ticketInfoPay.idTicket = idTicket;
-        ticketInfoPay.idUser = TICKET_TYPE_PAY ? profile.idUser : idToUser;
+  }
 
-        let ticketInfoCollect = new TICKET_INFO_COLLECT();
-        ticketInfoCollect.idTicket = idTicket;
-        ticketInfoCollect.idUser = TICKET_TYPE_PAY ? idToUser : profile.idUser;
+  async function confirmSave (option)
+  {
+    if (option=="OK") await saveInfo()
+  }
 
-        // mm - agrego los 2 registros, pay y collect de esta manera para que no me guarde info sucia porque el usuario pudo haber seleccionado info para pay o collect y despues haberla cambiada
-        if (ticketType == TICKET_TYPE_PAY) {
-          ticketInfoPay.info.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
-          ticketInfoPay.info.type = payType
-        } else {
-          ticketInfoCollect.info.billsAmount = Number(billsAmount);
-          ticketInfoCollect.info.billsNote = billsNote;
-          ticketInfoCollect.info.areaWork = userAreaToWork;
-        }
+  async function saveInfo()
+  {
+    try{
+      setLoading(true);
 
-        // mm - si es un ticket para mi, dependiendo si es cobrar o pagar lo agrego
-        if (isMe (idToUser) && ticketType == TICKET_TYPE_PAY ) await db_addTicketInfo(ticketInfoPay);
-        if (isMe (idToUser) && ticketType == TICKET_TYPE_COLLECT ) await db_addTicketInfo(ticketInfoCollect);
+      // mm - si el ticket no viene para nadie me lo agrego a mi como usuario
+      if (groupUsersList.length ==0)
+      {
+        groupUsersList.push ({id:1, name:"", contact: profile.idUser})
+      }
 
-        // mm - si no es un ticket para mi agrego los 2 registros de cobro y pago
-        if (!isMe(idToUser))
-        { await db_addTicketInfo(ticketInfoPay);
-          await db_addTicketInfo(ticketInfoCollect);
-        }
+      // mm - si no se creo la asociacion de tickets lo creo
+      for (const item of groupUsersList) {
+        let idToUser = item.contact;
+        // mm - para no crearle un ticket al creador del ticket
+        //if (idToUser != profile.idUser) {
+          // mm - necesito volver a crear el ticket cada vez para que no de error
+          
+          let idTicket = uuidv4()
+          // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
+          let ticketInfoPay = new TICKET_INFO_PAY();
+          ticketInfoPay.idTicket = idTicket;
+          ticketInfoPay.idUser = TICKET_TYPE_PAY ? profile.idUser : idToUser;
 
-        // mm - agrego que tipo es personal-negocio,etc
-        // mm primero genero un registro para un usuario y luego para el otro
-        let ticketInfoUseType = new TICKET_INFO_USE_TYPE();
-        ticketInfoUseType.idTicket = idTicket;
-        ticketInfoUseType.idUser = profile.idUser;
-        ticketInfoUseType.info.useType = useType;
-        await db_addTicketInfo(ticketInfoUseType);
+          let ticketInfoCollect = new TICKET_INFO_COLLECT();
+          ticketInfoCollect.idTicket = idTicket;
+          ticketInfoCollect.idUser = TICKET_TYPE_PAY ? idToUser : profile.idUser;
 
-        // mm - si el ticket es para mi no le agrego la info para el usuario destinatario
-        if (!isMe(idToUser))
-        {
-          // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
-          ticketInfoUseType = new TICKET_INFO_USE_TYPE();
+          // mm - agrego los 2 registros, pay y collect de esta manera para que no me guarde info sucia porque el usuario pudo haber seleccionado info para pay o collect y despues haberla cambiada
+          if (ticketType == TICKET_TYPE_PAY) {
+            ticketInfoPay.info.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
+            ticketInfoPay.info.type = payType
+          } else {
+            ticketInfoCollect.info.billsAmount = Number(billsAmount);
+            ticketInfoCollect.info.billsNote = billsNote;
+            ticketInfoCollect.info.areaWork = userAreaToWork;
+          }
+
+          // mm - si es un ticket para mi, dependiendo si es cobrar o pagar lo agrego
+          if (isMe (idToUser) && ticketType == TICKET_TYPE_PAY ) await db_addTicketInfo(ticketInfoPay);
+          if (isMe (idToUser) && ticketType == TICKET_TYPE_COLLECT ) await db_addTicketInfo(ticketInfoCollect);
+
+          // mm - si no es un ticket para mi agrego los 2 registros de cobro y pago
+          if (!isMe(idToUser))
+          { await db_addTicketInfo(ticketInfoPay);
+            await db_addTicketInfo(ticketInfoCollect);
+          }
+
+          // mm - agrego que tipo es personal-negocio,etc
+          // mm primero genero un registro para un usuario y luego para el otro
+          let ticketInfoUseType = new TICKET_INFO_USE_TYPE();
           ticketInfoUseType.idTicket = idTicket;
-          ticketInfoUseType.idUser = idToUser;
+          ticketInfoUseType.idUser = profile.idUser;
+          ticketInfoUseType.info.useType = useType;
           await db_addTicketInfo(ticketInfoUseType);
-        }
 
-        // mm - creo status inicial
-        let data = new TICKET_LOG_DETAIL_STATUS();
-        // mm - tomo el id del ticket que se creo
-        data.idTicket = idTicket;
-        data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser;
-        data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
-        data.data.amount = ticketAmount;
-        data.message = isTicketOpen
-          ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
-          : "Se ingreso un ticket cumplido por " + defaultCurrency + " " + formatNumber(ticketAmount);
+          // mm - si el ticket es para mi no le agrego la info para el usuario destinatario
+          if (!isMe(idToUser))
+          {
+            // mm - le agrego el usetype del ticket para el otro usuario para que lo complete
+            ticketInfoUseType = new TICKET_INFO_USE_TYPE();
+            ticketInfoUseType.idTicket = idTicket;
+            ticketInfoUseType.idUser = idToUser;
+            await db_addTicketInfo(ticketInfoUseType);
+          }
 
-        await db_addTicketLogStatus(data);
+          // mm - creo status inicial
+          let data = new TICKET_LOG_DETAIL_STATUS();
+          // mm - tomo el id del ticket que se creo
+          data.idTicket = idTicket;
+          data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
+          data.idUserFrom = profile.idUser;
+          data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
+          data.data.amount = ticketAmount;
+          data.message = isTicketOpen
+            ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
+            : "Se ingreso un ticket cumplido por " + defaultCurrency + " " + formatNumber(ticketAmount);
 
-        // mm - creo status de fecha de vencimiento inicial
-        data = new TICKET_LOG_DETAIL_STATUS();
-        data.idTicket = idTicket;
-        data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
-        data.idUserFrom = profile.idUser;
-        data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
-        data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
-        data.data.dueDate = dueDate;
+          await db_addTicketLogStatus(data);
 
-        await db_addTicketLogStatus(data);
+          // mm - creo status de fecha de vencimiento inicial
+          data = new TICKET_LOG_DETAIL_STATUS();
+          data.idTicket = idTicket;
+          data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
+          data.idUserFrom = profile.idUser;
+          data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
+          data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
+          data.data.dueDate = dueDate;
 
-        // mm - creo por default el rating 0 para el ticket
-        await db_addTicketRating(idTicket, 0);
+          await db_addTicketLogStatus(data);
 
-        let ticket = new TICKET();
-        ticket.idTicket = idTicket
-        ticket.initialAmount = Number(ticketAmount);
-        ticket.amount = Number(ticketAmount);
-        ticket.netAmount = Number(ticketAmount - billsAmount);
-        ticket.title = ticketName;
-        ticket.isOpen = isTicketOpen;
-        ticket.currency = defaultCurrency;
-        ticket.note = ticketDesc;
-        ticket.notePrivate = ticketDescPrivate;
-        ticket.way = ticketType;
-        ticket.TSDueDate = dueDate; // mm - fecha inicial de vencimiento
-        ticket.paymentInfo.paymentMethod = payMethodInfo;
-        ticket.metadata.externalReference = ticketRef;
-        ticket.idUserCreatedBy = profile.idUser;
-        ticket.idUserFrom = profile.idUser;
-        // mm - si es para mi no se lo agrego a nadie
-        ticket.idUserTo = isMe (idToUser) ? "" : idToUser;
-        ticket.idTicketGroupBy = idTicketGroupBy;
-        ticket.idTicketGroup = idTicketGroup;
-        ticket.collectionProcedure = isCollectProcedure
+          // mm - creo por default el rating 0 para el ticket
+          await db_addTicketRating(idTicket, 0);
+
+          let ticket = new TICKET();
+          ticket.idTicket = idTicket
+          ticket.initialAmount = Number(ticketAmount);
+          ticket.amount = Number(ticketAmount);
+          ticket.netAmount = Number(ticketAmount - billsAmount);
+          ticket.title = ticketName;
+          ticket.isOpen = isTicketOpen;
+          ticket.currency = defaultCurrency;
+          ticket.note = ticketDesc;
+          ticket.notePrivate = ticketDescPrivate;
+          ticket.way = ticketType;
+          ticket.TSDueDate = dueDate; // mm - fecha inicial de vencimiento
+          ticket.paymentInfo.paymentMethod = payMethodInfo;
+          ticket.metadata.externalReference = ticketRef;
+          ticket.idUserCreatedBy = profile.idUser;
+          ticket.idUserFrom = profile.idUser;
+          // mm - si es para mi no se lo agrego a nadie
+          ticket.idUserTo = isMe (idToUser) ? "" : idToUser;
+          ticket.idTicketGroupBy = idTicketGroupBy;
+          ticket.idTicketGroup = idTicketGroup;
+          ticket.collectionProcedure = isCollectProcedure
+          
+          // mm - para cada usuario del grupo le agrego un ticket con la misma info
+          let aux = await db_addTicket(idTicket, ticket);
+
+          if (!aux) {
+            setLoading(false);
+            showToast.error("Existió un error al crear el ticket, por favor verifica la información y vuelve a intentar");
+            return;
+          }
+        //}
         
-        // mm - para cada usuario del grupo le agrego un ticket con la misma info
-        let aux = await db_addTicket(idTicket, ticket);
+      }
 
-        if (!aux) {
-          setLoading(false);
-          showToast.error("Existió un error al crear el ticket, por favor verifica la información y vuelve a intentar");
-          return;
-        }
-      //}
+      debugger
+      if (repeatOption != REPEAT_NO_REPEAT)
+      {
+        let repeat = new TICKET_REPEAT()
+
+        repeat.frecuency = repeatOption
+        repeat.TSEnd = repeatEndDate
+        repeat.groupUsers = groupUsersList.map ((item)=>item.contact)
+        repeat.idUserFrom = profile.idUser, //mm - quien origina el ticket
+        repeat.idUserCreatedBy = profile.idUser
+        repeat.name = ticketName
+        repeat.ticket.idTicketGroup = idTicketGroup
+        repeat.ticket.idTicketGroupBy = idTicketGroupBy
+        repeat.ticket.amount = Number(ticketAmount);
+        repeat.ticket.title = ticketName;
+        repeat.ticket.currency = defaultCurrency;
+        repeat.ticket.note = ticketDesc;
+        repeat.ticket.notePrivate = ticketDescPrivate;
+        repeat.ticket.way = ticketType;
+        repeat.ticket.paymentInfo.paymentMethod = payMethodInfo;
+        repeat.ticket.metadata.externalReference = ticketRef;
+        repeat.ticket.collectionProcedure = isCollectProcedure
+
+        await db_addRepeatTicket (repeat.idTicketRepeat, repeat)
+        showAlertModal ("Atención", "La repetición del ticket esta pausada hasta que la habilites en la pantalla de Repetir")
+      }
+      setLoading(false);
+
+      showToast.success(`Se creó el ticket '${ticketName}' por ${defaultCurrency} ${ticketAmount}`, "Ticket creado");
+    }catch (e) {console.log (e)
+      showAlertModal ("Error", "Cuando intente crear el ticket existio un error, por favor intenta verifica e intenta más tarde")
     }
-
-    setLoading(false);
-
-    showToast.success(`Se creó el ticket '${ticketName}' por ${defaultCurrency} ${ticketAmount}`, "Ticket creado");
-
-    navigation.reset({ index: 0, routes: [{ name: "MainScreen" }] });
+      navigation.reset({ index: 0, routes: [{ name: "MainScreen" }] });
   }
 
   function setPayCollect(pay) {
@@ -306,14 +352,14 @@ const NewTicket = ({ navigation, route }) => {
 
   const removeContactFromList = (contact) => {
     /// mm - si aun no esta en la lista para no agregarlo duplicado que da error
-    if (groupUsersList.length == 2) {
+    /*if (groupUsersList.length == 1) {
       // mm - el usuario mas otro
       showAlertModal("Atención", "Debes tener al menos un contacto asociado", {
         ok: true,
         cancel: false,
       });
       return;
-    }
+    }*/
     setGroupUsersList((prevItems) => prevItems.filter((item) => item !== contact));
   };
   async function loadData() {
@@ -402,29 +448,29 @@ const NewTicket = ({ navigation, route }) => {
                 alignItems: "center",
                 gap: 10,
                 //padding: 20,
-              }}>
-              <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_COLLECT)}>
+                }}>
+                <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_COLLECT)}>
                 <Text style={[getStyles(mode).chatFilterText, ticketType == TICKET_TYPE_COLLECT ? getStyles(mode).activeChatFilterText : null]}>Cobrar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_PAY)}>
+                </TouchableOpacity>
+                <TouchableOpacity style={[getStyles(mode).chatFilter, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilter : null]} onPress={() => setTicketType(TICKET_TYPE_PAY)}>
                 <Text style={[getStyles(mode).chatFilterText, ticketType == TICKET_TYPE_PAY ? getStyles(mode).activeChatFilterText : null]}>Pagar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                </TouchableOpacity>
+              </View>
+              </View>
 
-          <View style={[getStyles(mode).topBarHolder, { borderBottomWidth: 0 }]}>
-            <FlatList
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-              data={groupUsersList}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <SelectedItem item={item} removeContactFromList={removeContactFromList} profile={profile} />}
-              contentContainerStyle={{ paddingHorizontal: 15 }}
-            />
-          </View>
-          <View style={getStyles(mode).row}>
-            <BadgeBtn
-              items={[
+              <View style={[getStyles(mode).topBarHolder, { borderBottomWidth: 0 }]}>
+              <FlatList
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                data={groupUsersList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <SelectedItem item={item} removeContactFromList={removeContactFromList} profile={profile} />}
+                contentContainerStyle={{ paddingHorizontal: 15 }}
+              />
+              </View>
+              <View style={getStyles(mode).row}>
+              <BadgeBtn
+                items={[
                 {
                   id: TICKET_USE_TYPE_PERSONAL,
                   title: "Personal",
@@ -443,13 +489,13 @@ const NewTicket = ({ navigation, route }) => {
                   active: useType === TICKET_USE_TYPE_SHARED,
                   onClick: () => setUseType(TICKET_USE_TYPE_SHARED),
                 },
-              ]}
-              idActive={useType}
-            />
-          </View>
-          {ticketType == TICKET_TYPE_PAY && <View style={getStyles(mode).row}>
-            <BadgeBtn
-              items={[
+                ]}
+                idActive={useType}
+              />
+              </View>
+              {ticketType == TICKET_TYPE_PAY && <View style={getStyles(mode).row}>
+              <BadgeBtn
+                items={[
                 {
                   id: TICKET_INFO_TYPE_PAY_PLANNED,
                   title: "Gasto Programado",
@@ -468,25 +514,25 @@ const NewTicket = ({ navigation, route }) => {
                   active: payType === TICKET_INFO_TYPE_PAY_UNEXPECTED,
                   onClick: () => setTypePay(TICKET_INFO_TYPE_PAY_UNEXPECTED),
                 },
-              ]}
-              idActive={payType}
-            />
-          </View>}
+                ]}
+                idActive={payType}
+              />
+              </View>}
 
-          <View style={[getStyles(mode).container, { flex: 1 }]}>
-            <View style={{ padding: 20 }}>
-              <Text style={getStyles(mode).sectionTitle}>Título</Text>
-              <View style={getStyles(mode).searchBar}>
+              <View style={[getStyles(mode).container, { flex: 1 }]}>
+              <View style={{ padding: 20 }}>
+                <Text style={getStyles(mode).sectionTitle}>Título</Text>
+                <View style={getStyles(mode).searchBar}>
                 <TextInput placeholder="título del ticket..." placeholderTextColor={colors.secondary} style={getStyles(mode).textInput} value={ticketName} onChangeText={setTicketName} />
-              </View>
-              <Text style={[getStyles(mode).sectionTitle, { paddingTop: 20 }]}>Importe</Text>
-              <View
+                </View>
+                <Text style={[getStyles(mode).sectionTitle, { paddingTop: 20 }]}>Importe</Text>
+                <View
                 style={[
                   {
-                    padding: 10,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 10,
+                  padding: 10,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
                   },
                   getStyles(mode).searchBar,
                 ]}>
@@ -494,27 +540,27 @@ const NewTicket = ({ navigation, route }) => {
                 <TextInput
                   placeholder="importe del ticket..."
                   placeholderTextColor={colors.secondary}
-                  style={[getStyles(mode).textInput, { textAlign: "right", flex: 1, fontSize:20 }]}
+                  style={[getStyles(mode).textInput, { textAlign: "right", flex: 1, fontSize: ticketAmount ? 30 : 18, fontWeight: ticketAmount ? "bold" : "normal" }]}
                   value={ticketAmount}
                   keyboardType="numeric"
                   onChangeText={setTicketAmount}
                 />
-              </View>
-              {ticketType == TICKET_TYPE_PAY && (
+                </View>
+                {ticketType == TICKET_TYPE_PAY && (
                 <View style={{ paddingTop: 20, paddingBottom: 20 }}>
                   <Text style={getStyles(mode).sectionTitle}>A que corresponde el gasto</Text>
                   <View>
-                    <DropDownList placeholder="selecciona un tipo de gasto" data={EXPENSES_CATEGORY} onSelected={onSelectedExpensesCategory} />
+                  <DropDownList placeholder="selecciona un tipo de gasto" data={EXPENSES_CATEGORY} onSelected={onSelectedExpensesCategory} />
                   </View>
                 </View>
-              )}
-              <View>
+                )}
+                <View>
                 <View style={getStyles(mode).row}>
                   <Text style={getStyles(mode).normalText}>Ya cobre/pagué el ticket</Text>
                   <Switch value={!isTicketOpen} onValueChange={toggleTicketOpen} trackColor={{ false: "#767577", true: "#b3b3b3ff" }} thumbColor={isTicketOpen ? "#f4f3f4" : "#aafdc2ff"} />
                 </View>
-              </View>
-              {/* SI ES TIPO COBRAR*/}
+                </View>
+                {/* SI ES TIPO COBRAR*/}
               <Hr />
 
               <View style={{ paddingVertical: 20 }}>

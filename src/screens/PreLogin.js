@@ -26,8 +26,7 @@ const PreLogin = ({ navigation }) => {
 
             <View style={[ tStyles.centery, tStyles.flex1, { paddingHorizontal: 15 } ]}>
                 <Text style={[getStyles(mode).screenTitle ]}>Bienvenido a peiApp</Text>
-                <Text style={[getStyles(mode).subNormalText, {textAlign:"center"}]}>
-                    {`\n`}{`\n`}
+                <Text style={[getStyles(mode).subNormalText, {textAlign:"center", padding:30}]}>
                     Lee nuestra <Text style={{ color: '#0096FF' }}>Política de privacidad de datos.</Text> 
                     {`\n`}
                     {`\n`}

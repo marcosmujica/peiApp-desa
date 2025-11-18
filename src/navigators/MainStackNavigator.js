@@ -19,7 +19,6 @@ export const MainStackNavigator = () => {
             <Stack.Screen name="GroupList" component={ Screens.GroupList } />
             <Stack.Screen name="GroupInfo" component={ Screens.GroupInfo } />
             <Stack.Screen name="GroupByInfo" component={ Screens.GroupByInfo } />
-            <Stack.Screen name="GroupByTicketInfo" component={ Screens.GroupByTicketInfo } />
             <Stack.Screen name="OTPScreen" component={ Screens.OTPScreen } />
             <Stack.Screen name="Profile_Info" component={ Screens.Profile_Info } />
             <Stack.Screen name="TicketResume" component={ Screens.TicketResume } />

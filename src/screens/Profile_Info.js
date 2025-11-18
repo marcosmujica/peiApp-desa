@@ -26,7 +26,6 @@ import {
   SEX_LIST,
   USER_PREFIX_USER,
 } from "../commonApp/constants";
-import { v4 as uuidv4 } from "uuid";
 import { db_setNewUser, db_addUserConfig } from "../commonApp/database";
 import { validateEmail } from "../commonApp/functions";
 import DropDownList from "../components/DropDownList";
@@ -83,33 +82,15 @@ const Profile_Info = ({ navigation, route }) => {
 
       setLoading(true);
 
-      let idUser = profile.phone //USER_PREFIX_USER + uuidv4();
-      const user = new USER();
-      user.id = idUser;
-      user.name = myName;
-      user.email = email;
-      user.avatar = "";
-      user.about = about;
-      user.isActive = true;
-      user.phone = profile.phone;
-      user.countryCode = profile.countryCode;
-      user.phonePrefix = profile.phonePrefix;
-      user.instagram = instagram;
-      user.web = web;
-      user.sex = sex;
-
       try {
-        await db_setNewUser(idUser, user);
-        profile.name = user.name;
-        profile.idUser = user.id;
+        profile.name = myName;
+        profile.idUser = profile.phone;
         profile.isActive = true;
         profile.isLogged = true;
         profile.about = about;
         profile.email = email;
         profile.sex = sex;
         await setProfile(profile);
-        //await db_addUserConfig(profile.idUser, new USER_CONFIG());
-        //await setInitGroupBy();
 
         navigation.navigate("UserProfile");
       

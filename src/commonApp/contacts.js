@@ -1,7 +1,7 @@
 import * as Contacts from "expo-contacts";
 import { Platform } from "react-native";
 import contactsInstance from './contactsInstance';
-import { v4 as uuidv4 } from "uuid";
+import { getUId } from "./functions";
 
 // Exportar la instancia para compatibilidad con código existente
 export const _contacts = contactsInstance.getContacts();
@@ -119,7 +119,7 @@ export async function recoveryAllContacts(defaultCountryCode = "+598") {
           const normalized = normalizePhoneNumber(p.number, defaultCountryCode);
           if (normalized && !uniqueContacts.has(normalized)) {
             uniqueContacts.set(normalized, {
-              id: uuidv4(), // id único
+              id: getUId(), // id único
               name: contact.name,
               phone: normalized,
             });

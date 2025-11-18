@@ -266,7 +266,7 @@ class LocalData {
                     console.log("[localData] ticketViews no es un array válido, inicializando como array vacío");
                     this.ticketViews = [];
                 }
-
+                
                 // mm - eliminar duplicados basados en idTicket (mantener el más reciente)
                 const uniqueTickets = new Map();
                 this.ticketViews.forEach(ticket => {
@@ -278,7 +278,7 @@ class LocalData {
                 this.ticketViews = Array.from(uniqueTickets.values());
                 
                 console.log(`[localData] Tickets cargados: ${this.ticketViews.length} (después de eliminar duplicados)`);
-
+                
                 // mm - ordeno descendentemente por ts (más reciente primero)
                 this.ticketViews = this.ticketViews.sort((a, b) => {
                     const dateA = new Date(a.ts).getTime();
@@ -287,21 +287,21 @@ class LocalData {
                 });
                 
                 this.isReady = true;
-
-                  // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
+                
+                // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
                 this._dbChangeListener = onEvent(EVENT_DB_CHANGE, (payload) => {
-                this._handleDBChange(payload);
+                    this._handleDBChange(payload);
                 })
             } catch (e) {
                 console.log("❌ Error en initData:", e);
                 this.ticketViews = [];
                 this.isReady = false;
             }
-
-          
+            
+            
         }
     }
-
+    
     // Manejar cambios de la base de datos
     async _handleDBChange(payload) {
         console.log("LocalData: DB Change detected", payload);

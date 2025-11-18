@@ -40,12 +40,10 @@ const TitleBar = ({title, subtitle, goBack, onGoBack, options, idAvatar = "", de
         <TouchableOpacity 
           style={{ 
             flex: 1, 
-            justifyContent: 'center',
-            minHeight: 40, // Altura mínima para coincidir con el botón de regreso
-            paddingVertical: 5  // Padding para mantener espacio consistente
+            justifyContent: 'center'
           }}
           onPress={() => onGoBack == undefined ? navigation.goBack() : onGoBack ()}>
-            <View style={{ justifyContent: 'center', height: subtitle ? 'auto' : 40 }}>
+            <View style={{ justifyContent: 'center' }}>
               <Text style={[getStyles(mode).topBarMainText, { alignSelf: 'flex-start' }]}>{ellipString (title, 30)}</Text>
               {subtitle != "" && <Text style={[getStyles(mode).topBarSecText, { alignSelf: 'flex-start' }]}>{subtitle == undefined && subtitle != "" ? "" :  ellipString (subtitle, 50)}</Text>}
             </View>

@@ -36,8 +36,8 @@ import { GROUP_TICKETS, GROUP_BY_TICKETS } from "../commonApp/dataTypes";
 import { getProfile } from "../commonApp/profile";
 import TitleBar from "../components/TitleBar";
 import Loading from "../components/Loading";
-import { v4 as uuidv4 } from "uuid";
 import { getContactName } from "../commonApp/contacts";
+import { getUId } from "../commonApp/functions";
 
 const UserGroupInfo = ({ navigation, route }) => {
   const [usersListGroup, setUserListGroup] = React.useState(
@@ -104,8 +104,8 @@ const UserGroupInfo = ({ navigation, route }) => {
     setLoading(true);
     // mm - creo el grupo
 
-    let idGroup = USER_PREFIX_GROUP + uuidv4()
-    let idGroupBy = USER_PREFIX_GROUP_BY + uuidv4()
+    let idGroup = USER_PREFIX_GROUP + getUId()
+    let idGroupBy = USER_PREFIX_GROUP_BY + getUId()
 
     let ticketGroup = new GROUP_TICKETS();
 

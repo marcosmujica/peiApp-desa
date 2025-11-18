@@ -1,591 +1,1131 @@
-import { Platform } from "react-native";
-import * as SQLite from "expo-sqlite";
-import { openDB } from "idb";
-import "react-native-get-random-values";
-import { v4 as uuidv4 } from "uuid";
-import { Buffer } from "buffer";
-import { EVENT_NEW_DOC, emitEvent } from "./DBEvents";
+/**
+ * DB.js - Clase autónoma para acceso a CouchDB
+ * 
+ * Características:
+ * - Almacenamiento local: IndexedDB (web) o expo-sqlite (mobile)
+ * - Sincronización bidireccional con CouchDB
+ * - No usa PouchDB
+ * - Sincronización basada en _changes con seguimiento de seq
+ * - Autenticación Basic Auth
+ * - CRUD completo
+ * - Filtrado por usuario
+ * 
+ * Estructura de documentos:
+ * {
+ *   _id: "doc_001",           // ID único
+ *   _rev: "1-abc123",         // Revisión de CouchDB
+ *   _deleted: false,          // Flag de eliminación
+ *   syncStatus: "pending",    // Estado de sincronización (solo local)
+ *   data: {                   // Datos del usuario
+ *     name: "Juan",
+ *     email: "juan@example.com",
+ *     ...
+ *   }
+ * }
+ */
 
+import { Platform } from 'react-native';
+import * as SQLite from 'expo-sqlite';
+import { openDB } from 'idb';
+import {EVENT_DB_CHANGE, emitEvent } from "./DBEvents";
+import { DB_EVENT } from './dataTypes';
+import { getUId } from './functions';
 
-//const _dbURL = "http://192.168.68.51:5984";
-const _dbURL = "http://34.95.181.238:5984";
-const _username = "admin";
-const _password = "admin";
-const _syncInterval = 20000
-const _type = "LOCAL"
-const _fetchTimeout = 10000
-const _fetchTimeoutLongPool = 60000
+// ==================== CONFIGURACIÓN ====================
+const SYNC_INTERVAL = 30000; // 30 segundos
+const FETCH_TIMEOUT = 10000; // 10 segundos
 
+// ==================== CLASE PRINCIPAL ====================
 export class DB {
-  constructor({
-    name,
-    type: typeParam,
-    username: usernameParam,
-    password: passwordParam,
-    syncInterval : syncIntervalParam,
-    index = [],
-    debug = false,
-  }) {
-    try{
-      this.tableName = name;
-      this.couchUrl = _dbURL;
-      this.isWeb = Platform.OS == "web";
-      // mm - si no vienen los valores los tomo por defecto
-      this.username = (typeof usernameParam !== 'undefined') ? usernameParam : _username;
-      this.password = (typeof passwordParam !== 'undefined') ? passwordParam : _password;
-      this.syncInterval = (typeof syncIntervalParam !== 'undefined') ? syncIntervalParam : _syncInterval;
-      this.type = (typeof typeParam !== 'undefined') ? typeParam : _type;
-      this.index = index
-      this.authHeader = "Basic " + Buffer.from(`${this.username}:${this.password}`).toString("base64");
-      this.localDB = null;
-      this.syncing = false;
-      this.debug = !!debug;
-      this._trace = [];
-      this._maxTrace = 1000; // cap to avoid unbounded memory
-    }
-    catch (e)
-    {
-      console.log ("A iniciailizar DB " + JSON.stringify(e))
-    }
+  /**
+   * Constructor de la clase DB
+   * 
+   * @param {string} dbName - Nombre de la base de datos
+   * @param {Object} options - Opciones de configuración
+   * @param {Array<string>} options.indices - Índices para SQLite (ej: ['userId', 'type'])
+   * @param {boolean} options.isRemote - Si es true, sincroniza con servidor remoto
+   * @param {string} options.couchUrl - URL del servidor CouchDB
+   * @param {string} options.username - Usuario para autenticación
+   * @param {string} options.password - Contraseña para autenticación
+   * @param {string} options.userId - ID del usuario logueado (para filtrado)
+   * @param {number} options.syncInterval - Intervalo de sincronización en ms
+   * @param {number} options.fetchTimeout - Timeout para fetch en ms
+   */
+  constructor(dbName, options = {}) {
+    this.dbName = dbName;
+    this.isRemote = options.isRemote || false;
+    this.couchUrl = options.couchUrl ;
+    this.username = options.username ;
+    this.password = options.password ;
+    this.userId = options.userId || '';
+    this.indices = options.indices || [];
+    this.syncInterval = options.syncInterval || SYNC_INTERVAL;
+    this.fetchTimeout = options.fetchTimeout || FETCH_TIMEOUT;
+    this.emitEvent = options.emitEvent || false
+    
+    // Estado interno
+    this.db = null;
+    this.isWeb = Platform.OS === 'web';
+    this.initialized = false;
+    this.syncing = false;
+    this.syncTimer = null;
+    this.lastSeq = 0;
+    
+    // Inicializar automáticamente
+    
   }
 
-  // --- Helper para fetch con timeout ---
-  async _fetchWithTimeout(resource, options = {}) {
-    const { timeout = _fetchTimeout } = options;
-    options = {...options, headers: { Authorization: this.authHeader, "Content-Type": "application/json" }}
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-      console.log (resource)
-      console.log (options)
-      debugger
-      const response = await fetch(resource, { ...options, signal: controller.signal });
-      clearTimeout(id);
-      return response;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
-    }
-  }
-
-  // --- Tracing helpers ---
-  _preview(obj, max = 200) {
-    try {
-      const s = typeof obj === 'string' ? obj : JSON.stringify(obj);
-      return s.length > max ? s.slice(0, max) + '…' : s;
-    } catch (e) {
-      try { return String(obj).slice(0, max); } catch (_) { return '‹unserializable›' }
-    }
-  }
-
-  _tracePush(event, payload = {}) {
-    const entry = { ts: Date.now(), event, payload };
-    this._trace.push(entry);
-    if (this._trace.length > this._maxTrace) this._trace.shift();
-    if (this.debug) {
-      try {
-        console.log(`[DB:${this.tableName}] ${event}`, payload);
-      } catch (e) {
-        // ignore logging errors
-      }
-    }
-  }
-
-  getTrace() {
-    return this._trace.slice();
-  }
-
-  clearTrace() {
-    this._trace = [];
-  }
-
-  // Trace helper: get entries related to a specific id (id or _id)
-  getTraceFor(id) {
-    if (!id) return [];
-    return this._trace.filter(e => {
-      const p = e.payload || {};
-      return p.id === id || p._id === id || (p.preview && p.preview.indexOf(id) !== -1) || (p.paramsPreview && p.paramsPreview.indexOf(id) !== -1);
-    });
-  }
-
-  // Print trace entries for an id (nicely formatted)
-  printTraceFor(id) {
-    const entries = this.getTraceFor(id);
-    console.log(`Trace for ${id} (${entries.length} entries):`);
-    for (const e of entries) {
-      console.log(new Date(e.ts).toISOString(), e.event, e.payload);
-    }
-  }
-
-  getTraceByEvent(eventName) {
-    return this._trace.filter(e => e.event === eventName);
-  }
-
-  printLast(n = 50) {
-    const tail = this._trace.slice(-n);
-    console.log(`Last ${tail.length} trace entries:`);
-    for (const e of tail) console.log(new Date(e.ts).toISOString(), e.event, e.payload);
-  }
-
-  /** Inicializa DB y arranca sync */
+  // ==================== INICIALIZACIÓN ====================
+  
+  /**
+   * Inicializa la base de datos local y comienza sincronización
+   */
   async initDB() {
-    console.log("Inicializando base de datos " + this.tableName + "...");
     try {
-      if (this.isWeb) {
-        this.localDB = await openDB(this.tableName, 1, {
-          upgrade(db) {
-            if (!db.objectStoreNames.contains("records")) {
-              db.createObjectStore("records", { keyPath: "id" });
-            }
-          },
-        });
-      } else {
-        this.localDB = await SQLite.openDatabaseAsync(this.tableName);
-
-        await this.localDB.execAsync("PRAGMA journal_mode = WAL");
-        await this.localDB.execAsync("PRAGMA foreign_keys = ON");
-        //await this.localDB.execAsync('DROP TABLE IF EXISTS records')
-        // Add _rev and _id columns to keep CouchDB revision and _id locally
-        await this.localDB.execAsync(
-          "CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY,data TEXT,updatedAt INTEGER,synced INTEGER DEFAULT 0,_rev TEXT,_id TEXT)"
-        );
-        // Eliminar todos los índices existentes en la tabla 'records'
-        try {
-          const indexes = await this.localDB.getAllAsync(
-            `PRAGMA index_list('records')`
-          );
-          for (const idx of indexes) {
-            if (idx && idx.name && !idx.name.startsWith('sqlite_autoindex')) {
-              await this.localDB.execAsync(`DROP INDEX IF EXISTS ${idx.name}`);
-            }
-          }
-        } catch (e) {
-          console.log("Error eliminando índices existentes: " + JSON.stringify(e));
-        }
-        // mm - creo los indices pasados por parametro
-        try{
-          if (Array.isArray(this.index) && this.index.length > 0) {
-            for (let i = 0; i < this.index.length; i++) {
-              const aux = this.index[i];
-                // Generar un nombre de índice aleatorio
-                let name = aux.name
-                const columns = aux.fields
-                  .map(
-                    (field) =>
-                      `json_extract(data, '$.${field}')`
-                  )
-                  .join(", ");
-                const sql = `CREATE INDEX IF NOT EXISTS ${name} ON records(${columns})`;
-                await this.localDB.execAsync(sql);
-            }
-          }
-        }
-        catch (e){console.log ("Erorr en crear index: " + JSON.stringify(e))}
-        try {
-          await this.localDB.execAsync("ALTER TABLE records ADD COLUMN _rev TEXT");
-        } catch (e) {
-        }
-        try {
-          await this.localDB.execAsync("ALTER TABLE records ADD COLUMN _id TEXT");
-        } catch (e) {
-        }
-      }
-      console.log(
-        "Base de datos " + this.tableName + " inicializada correctamente"
-      );
-      this._tracePush('initDB:done');
-      if (this.type == "REMOTE") {
-        //await this.syncAllNow();
-        this.startSync();
-        this.listenChanges();
+      console.log(`[DB:${this.dbName}] Inicializando...`);
       
-      }
-    } catch (err) {
-      console.error("Error inicializando DB:", err);
-      this._tracePush('initDB:error', { error: this._preview(err) });
-    }
-  }
-  /** Sincronización inmediata manual */
-  async syncAllNow() {
-    try {
-      const records = await this.getAllToSync();
-      for (const r of records.filter((r) => r.synced === 0)) {
-        await this.syncRecord(r);
-      }
-    } catch (err) {
-      console.warn("Error en sincronización inicial:", err);
-    }
-  }
-
-  /** Guardar o actualizar registro local */
-  async saveLocal(data, id = "", rev = "") {
-    const updatedAt = Date.now();
-    try {
-      if (id == "" || id==null || id==undefined) {
-        id = uuidv4();
-      }
-    } catch (e) {
-      console.log(e);
-    }
-
-    // Si el registro está marcado como eliminado, guardar la marca
-    const isDeleted = data && data.deleted === true;
-    const record = {
-      id: id == "" ? (id = uuidv4()) : id,
-      _id: id == "" ? (id = uuidv4()) : id,
-      data,
-      updatedAt,
-      synced: 0,
-      _rev: rev || (data && data._rev) || "",
-    };
-
-    try {
+      // Inicializar base de datos local
       if (this.isWeb) {
-        await this.localDB.put("records", record);
+        await this._initIndexedDB();
       } else {
-        await this.exec(
-          `INSERT OR REPLACE INTO records (id, data, updatedAt, synced, _rev, _id) VALUES (?, ?, ?, 0, ?, ?)`,
-          [id, JSON.stringify(data), updatedAt, record._rev, record._id]
-        );
+        await this._initSQLite();
       }
-      this._tracePush('saveLocal:done', { id, _rev: record._rev, _id: record._id });
-
-      this.startSync(); // mm - al final intento sincronizar asincornico
-  try { emitEvent(EVENT_NEW_DOC, { table: this.tableName, id, _id: record._id, data: data, preview: this._preview(data), source: 'local', synced: false }); } catch(e) {}
-      return id;
-    } catch (err) {
-      console.error("Error guardando local:", err);
-      throw err;
-    }
-
-
-  }
-
-  async exec(sql, params = []) {
-    try {
-      this._tracePush('exec:call', { sql: this._preview(sql, 500), paramsPreview: this._preview(params) });
-      const result = await this.localDB.getAllAsync(sql, params);
-      this._tracePush('exec:done', { rows: Array.isArray(result) ? result.length : null });
-      return result == undefined ? [] : result;
-    } catch (err) {
-      console.log("error en execAsync", err);
-      throw err;
-    }
-  }
-  async run(sql, params = []) {
-    try {
-      this._tracePush('run:call', { sql: this._preview(sql,500), paramsPreview: this._preview(params) });
-      await this.localDB.runAsync(sql, params);
-      this._tracePush('run:done');
-      return true;
-    } catch (err) {
-      console.log("error en run", err);
-      return false;
-      throw err;
-    }
-  }
-
-  /** Obtener todos los registros locales */
-  async getAll(sql = "SELECT * FROM records", params = []) {
-    try {
-      let records;
-      if (this.isWeb) {
-        records = await this.localDB.getAll("records");
-      } else {
-        let result = await this.exec(sql, params);
-        if (result == null) result = [];
-        records = result.map((row) => ({
-          id: row.id,
-          _id: row._id || row.id,
-          data: row.data ? JSON.parse(row.data) : null,
-          updatedAt: row.updatedAt,
-          synced: row.synced,
-          _rev: row._rev || "",
-        }));
+      console.log ("sin error")
+      // Cargar último seq guardado
+      await this._loadLastSeq();
+      console.log ("con error")
+      
+      this.initialized = true;
+      console.log(`[DB:${this.dbName}] ✓ Inicializado correctamente`);
+      
+      // Si es remota, iniciar sincronización
+      if (this.isRemote) {
+        await this._startSync();
       }
-      return records.filter((r) => !(r.data && r.data.deleted === true));
-    } catch (err) {
-      console.error("Error obteniendo registros locales:", err);
-      this._tracePush('getAll:error', { error: this._preview(err) });
-      return [];
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error en inicialización:`, error);
+      throw error;
     }
   }
 
-  /** Obtener todos los registros locales */
-  async getAllToSync() {
+  /**
+   * Inicializa IndexedDB para web
+   */
+  async _initIndexedDB() {
+    this.db = await openDB(this.dbName, 1, {
+      upgrade(db) {
+        // Store principal
+        if (!db.objectStoreNames.contains('documents')) {
+          const store = db.createObjectStore('documents', { keyPath: '_id' });
+          store.createIndex('_rev', '_rev', { unique: false });
+          store.createIndex('_deleted', '_deleted', { unique: false });
+          store.createIndex('syncStatus', 'syncStatus', { unique: false });
+        }
+        
+        // Store para metadatos (seq, etc)
+        if (!db.objectStoreNames.contains('metadata')) {
+          db.createObjectStore('metadata', { keyPath: 'key' });
+        }
+      }
+    });
+    console.log(`[DB:${this.dbName}] IndexedDB inicializado`);
+  }
+
+  /**
+   * Inicializa SQLite para mobile
+   */
+  async _initSQLite() {
     try {
-      let data;
-      if (this.isWeb) {
-        data = await this.localDB.getAll("records");
-      } else {
-        data = await this.getAll("SELECT * FROM records WHERE synced=0");
-      }
-      // Filtrar registros eliminados y solo los no sincronizados
-      return data.filter(
-        (r) => r.synced === 0 && !(r.data && r.data.deleted === true)
-      );
-    } catch (err) {
-      console.error("Error obteniendo registros locales a sincronzizar:", err);
-      return [];
-    }
-  }
-
-  /** Marcar registro como sincronizado */
-  async markSynced(id, rev = null) {
-    this._tracePush('markSynced:start', { id, rev });
-    if (this.isWeb) {
-      const record = await this.localDB.get("records", id);
-      if (record) {
-        record.synced = 1;
-        if (rev) record._rev = rev;
-        await this.localDB.put("records", record);
-      }
-    } else {
-      if (rev) {
-        await this.exec(
-          `UPDATE records SET synced = 1, _rev = ? WHERE id = ?`,
-          [rev, id]
-        );
-      } else {
-        await this.exec(`UPDATE records SET synced = 1 WHERE id = ?`, [id]);
-      }
-    }
-    this._tracePush('markSynced:done', { id, rev });
-  }
-
-  /** Sincroniza un registro con CouchDB */
-  async syncRecord(record) {
-    this._tracePush('syncRecord:start', { id: record && record.id, preview: this._preview(record && record.data) });
-    try {
-      // Si el registro está eliminado, eliminar también en remoto si existe
-  if (record.data && record.data.deleted === true) {
-        // Intentar eliminar en remoto
+      // Si ya hay una conexión, no intentar abrir de nuevo
+      const startTime = Date.now();
+// Tu operación aquí
+      if (this.db) {
+        console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
         try {
-          const res = await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${record.id}`);
-          if (res.ok) {
-            const remote = await res.json();
-            if (remote && remote._rev) {
-              await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${record.id}?rev=${remote._rev}`,{method: "DELETE"});
-            }
-          }
+          //await this.db.getAllAsync('SELECT 1');
+          console.log(`[DB:${this.dbName}] Conexión SQLite activa y funcional`);
+          return;
         } catch (e) {
-          console.warn("Error eliminando remoto (se ignorará localmente):", e);
+          console.warn(`[DB:${this.dbName}] Conexión existente no responde, reabriendo...`);
+          this.db = null;
         }
-        await this.markSynced(record.id);
-        return;
-      }
-      const docToSave = {
-        _id: record.id,
-        data: record.data,
-        updatedAt: record.updatedAt,
-      };
-      const res = await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${record.id}`);
-
-      // Read response text safely and try to parse JSON when possible.
-      debugger
-      let resText = null;
-      try { resText = await res.text(); } catch (e) { resText = null; }
-      let resBody = null;
-      try {
-        if (resText && resText.trim().startsWith('{')) resBody = JSON.parse(resText);
-      } catch (e) {
-        resBody = null;
       }
 
-      this._tracePush('syncRecord:fetchRemoteHead', { status: res.status, bodyPreview: this._preview(resBody) });
+      this.db = await SQLite.openDatabaseAsync(this.dbName);
+      
+      if (!this.db) {
+        throw new Error('No se pudo establecer conexión SQLite');
+      }
+      
+      console.log(`[DB:${this.dbName}] Conexión SQLite establecida`);
+      
+      // Configurar SQLite con parámetros optimizados para móviles en una sola consulta
+      const configStartTime = performance.now();
+      
+      await this.db.execAsync(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA cache_size = -2000;
+        PRAGMA temp_store = MEMORY;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA busy_timeout = 30000;
+        PRAGMA wal_autocheckpoint = 1000;
+        PRAGMA page_size = 4096;
+        PRAGMA optimize;
+      `);
+      
+      const configEndTime = performance.now();
+      
+      
+      // Descomentar solo si necesitas resetear las tablas
+       //await this.db.execAsync('DROP TABLE IF EXISTS documents');
+       //await this.db.execAsync('DROP TABLE IF EXISTS metadata');
 
-      // Handle not-found responses from CouchDB which often come as 404 with a JSON body
-      if (res.status === 404 || (resBody && resBody.error === 'not_found')) {
-        // Documento no existe en remoto → crear
-        const r = await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${record.id}`,
-          { method: "PUT", body: JSON.stringify(docToSave)}
+      // Crear tabla principal usando execAsync (no getAllAsync)
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS documents (
+          _id TEXT PRIMARY KEY,
+          _rev TEXT,
+          _deleted INTEGER DEFAULT 0,
+          syncStatus TEXT DEFAULT 'synced',
+          data TEXT NOT NULL
         );
-        let createdBody = null;
-        try { const text = await r.text(); if (text && text.trim().startsWith('{')) createdBody = JSON.parse(text); } catch (e) { createdBody = null; }
-        if (r.ok) {
-          try {
-            const rev = (createdBody && (createdBody.rev || createdBody._rev)) || null;
-            this._tracePush('syncRecord:createdRemote', { id: record.id, rev, bodyPreview: this._preview(createdBody) });
-            await this.markSynced(record.id, rev);
-          } catch (e) {
-            this._tracePush('syncRecord:createParseError', { error: this._preview(e) });
-            await this.markSynced(record.id);
-          }
-        } else {
-          this._tracePush('syncRecord:createFailed', { status: r.status, bodyPreview: this._preview(createdBody) });
-        }
-      } else if (!res.ok) {
-        // Other HTTP errors (auth, server error, etc). Trace and retry later.
-        this._tracePush('syncRecord:fetchRemoteHead:error', { status: res.status, bodyPreview: this._preview(resBody) });
-        return;
-      } else {
-        const remote = resBody || (await res.json());
-        // Resolver conflicto por fecha
-        if (!remote._rev || remote.updatedAt < record.updatedAt) {
-          // Local más reciente → actualizar remoto
-          const r = await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${record.id}?rev=${remote._rev}`,
-            {method: "PUT", body: JSON.stringify({ ...docToSave, _rev: remote._rev }),}
-          );
-          if (r.ok) {
-            try {
-              const result = await r.json();
-              const rev = result.rev || result._rev || null;
-              this._tracePush('syncRecord:updatedRemote', { id: record.id, rev });
-              await this.markSynced(record.id, rev);
-            } catch (e) {
-              this._tracePush('syncRecord:updateParseError', { error: this._preview(e) });
-              await this.markSynced(record.id);
-            }
-          }
-        } else if (remote.updatedAt > record.updatedAt) {
-          // Remoto más reciente → actualizar local
-          // Si el remoto está eliminado, eliminar localmente
-          if (remote.data && remote.data.deleted === true) {
-            this._tracePush('syncRecord:remoteDeleted', { id: remote._id });
-            await this.delete(record.id);
-          } else {
-            this._tracePush('syncRecord:remoteNewer', { id: remote._id, rev: remote._rev });
-            await this.saveLocal(remote.data, remote._id, remote._rev);
-            await this.markSynced(remote._id, remote._rev);
-          }
-        }
+      `);
+/*
+      // Crear índices solicitados
+      for (const index of this.indices) {
+        await this.db.runAsync(`
+          CREATE INDEX IF NOT EXISTS idx_${index} 
+          ON documents(json_extract(data, '$.${index}'));
+        `);
+        console.log(`[DB:${this.dbName}] Índice 'idx_${index}' creado/verificado`);
       }
-    } catch (err) {
-      console.warn("Error sincronizando registro, se reintentará:", record.id, err);
-      this._tracePush('syncRecord:error', { id: record && record.id, error: this._preview(err) });
+  */    
+      // Crear tabla de metadatos
+      await this.db.execAsync(`
+        CREATE TABLE IF NOT EXISTS metadata (
+          key TEXT PRIMARY KEY,
+          value TEXT
+        );
+      `);
+      console.log(`[DB:${this.dbName}] ✓ SQLite inicializado correctamente`);
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error inicializando SQLite:`, error);
+      this.db = null;
+      this.initialized = false;
+      throw error;
     }
-    this._tracePush('syncRecord:done', { id: record && record.id });
   }
 
-  /** Sincronización periódica */
-  async startSync() {
-    if (this.syncing || this.type == "LOCAL") return;
-    this.syncing = true;
+  // ==================== MÉTODOS CRUD ====================
 
-    // Ejecutar sincronización inmediatamente
-    const doSync = async () => {
-      const records = await this.getAllToSync();
-      for (const r of records.filter((r) => r.synced === 0)) {
-        await this.syncRecord(r);
+  /**
+   * Crea o actualiza un documento
+   * @param {string} id - ID del documento
+   * @param {Object} doc - Documento a guardar (se guardará en el campo 'data')
+   * @returns {Promise<Object>} Documento guardado con estructura { _id, _rev, _deleted, syncStatus, data }
+   */
+  async put(id, doc) {
+    await this._ensureInitialized();
+    
+    try {
+      const docId = id || this._generateId();
+      const existingDoc = await this._getLocal(docId);
+      
+      // Agregar/actualizar timestamp updatedAt automáticamente
+      const dataWithTimestamp = {
+        ...doc,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Si es un documento nuevo, agregar también createdAt
+      if (!existingDoc && !doc.createdAt) {
+        dataWithTimestamp.createdAt = dataWithTimestamp.updatedAt;
       }
-    };
-
-    doSync(); // Primera sincronización inmediata
-    setInterval(doSync, this.syncInterval);
-  }
-
-  /** Longpoll para cambios remotos */
-  async listenChanges() {
-    const poll = async () => {
-      try {
-        // Increase timeout for longpoll requests to avoid AbortError
-        const res = await this._fetchWithTimeout(
-          `${this.couchUrl}/${this.tableName}/_changes?feed=longpoll&since=now`,{timeout: _fetchTimeoutLongPool});
-        const text = await res.text();
-        if (text.startsWith("{")) {
-          const changes = JSON.parse(text);
-          for (const c of changes.results) {
-            const docRes = await fetch(
-              `${this.couchUrl}/${this.tableName}/${c.id}`,
-              {
-                headers: {
-                  Authorization: this.authHeader,
-                  Accept: "application/json",
-                },
-              }
-            );
-            const doc = await docRes.json();
-            // Si el remoto está eliminado, eliminar localmente
-            if (doc.data && doc.data.deleted === true) {
-              await this.delete(doc._id);
-            } else {
-              await this.saveLocal(doc.data, doc._id);
-              await this.markSynced(doc._id);
-            }
-
-            // mm - emito evento de nuevo doc (remoto)
-            // This event comes from the server; mark it as synced/remote so
-            // listeners know the document is confirmed on the server.
-            emitEvent(EVENT_NEW_DOC, { table: this.tableName, data: doc.data, id: doc._id, doc, source: 'remote', synced: true });
-          }
-        } else {
-          console.error("Respuesta inesperada:", text);
-        }
-      } catch (err) {
-        console.warn("Error longpoll:", err);
-      } finally {
-        setTimeout(poll, 5000);
+      
+      // Estructura: campos de control en root, datos del usuario en 'data'
+      const newDoc = {
+        _id: docId,
+        _rev: existingDoc ? this._incrementRev(existingDoc._rev) : '1-' + this._generateId(),
+        _deleted: false,
+        syncStatus: 'pending',
+        data: dataWithTimestamp // Los datos del usuario van en el campo 'data' con timestamps
+      };
+      
+      // Guardar localmente
+      await this._putLocal(newDoc);
+      
+      //console.log(`[DB:${this.dbName}] ✓ Documento ${docId} guardado localmente (updatedAt: ${dataWithTimestamp.updatedAt})`);
+      
+      // Si es remoto, sincronizar inmediatamente
+      if (this.isRemote) {
+        this._syncDocumentToRemote(newDoc).catch(err => {
+          //console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
+        });
       }
-    };
-    poll();
+      
+      return docId;
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error en put:`, error);
+      throw error;
+    }
   }
 
-  /** API simple */
-  async add(data, idRecord) {
-    const id = await this.saveLocal(data, idRecord);
-    return id;
+  /**
+   * Actualiza un documento existente
+   * @param {string} id - ID del documento
+   * @param {Object} data - Datos a actualizar (se guardará en el campo 'data')
+   * @param {string} rev - Revisión actual del documento
+   * @returns {Promise<Object>} Documento actualizado con estructura { _id, _rev, _deleted, syncStatus, data }
+   */
+  async update(id, data, rev) {
+
+    console.log ("entro0")
+    await this._ensureInitialized();
+    
+    try {
+      const existingDoc = await this.getWithHeader(id);
+      if (!existingDoc) {
+        throw new Error(`Documento ${id} no encontrado`);
+      }
+      
+      // Verificar que el _rev coincida para evitar conflictos
+      if (rev && existingDoc._rev !== rev) {
+        //throw new Error(`Conflicto de revisión: esperado ${rev}, actual ${existingDoc._rev}`);
+      }
+      
+      // Agregar/actualizar timestamp updatedAt automáticamente
+      const dataWithTimestamp = {
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+      console.log (dataWithTimestamp)
+      
+      // Mantener createdAt si existe
+      if (existingDoc.data?.createdAt) {
+        dataWithTimestamp.createdAt = existingDoc.data.createdAt;
+      }
+      
+      // Estructura: campos de control en root, datos del usuario en 'data'
+      const updatedDoc = {
+        _id: id,
+        _rev: this._incrementRev(existingDoc._rev),
+        _deleted: false,
+        syncStatus: 'pending',
+        data: dataWithTimestamp
+      };
+      
+      // Guardar localmente
+      await this._putLocal(updatedDoc);
+      
+      // Si es remoto, sincronizar inmediatamente
+      if (this.isRemote) {
+        this._syncDocumentToRemote(updatedDoc).catch(err => {
+          console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
+        });
+      }
+      
+      return updatedDoc;
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error en update:`, error);
+      throw error;
+    }
   }
 
+  /**
+   * Obtiene un documento por ID
+   * @param {string} id - ID del documento
+   * @returns {Promise<Object|null>} Documento o null si no existe
+   */
   async get(id) {
-    if (this.isWeb) {
-      const all = await this.getAll();
-
-      let aux = all.find((r) => r.id === id)
-      return (aux == undefined || aux.length == 0  ? false : aux.data)
+    await this._ensureInitialized();
+    try {
+      const doc = await this._getLocal(id);
+      
+      if (doc && !doc._deleted) {
+        return doc;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error en get:`, error);
+      throw error;
     }
-    let aux = await this.getAll("SELECT * FROM records where id=?", [id]);
-    return (aux.length == 0 ? false : aux[0].data)
-  }
-
-  async find (params)
-  {
-    const keys = Object.keys(params || {});
-    if (keys.length === 0) {
-      return await this.getAll();
-    }
-
-    if (this.isWeb) {
-      // mm - hago la busqueda de los parametros
-      let aux = await this.getAll()
-      return (aux.filter(u =>Object.entries(params).every(([k, v]) => u.data[k] === v)));
-    }
-    const whereClauses = keys.map(key => `json_extract(data, '$.${key}') = ?`).join(' AND ');
-    const values = keys.map(key => params[key]);
-    const sql = `SELECT * FROM records WHERE ${whereClauses}`;
-
-    return await this.getAll(sql, values);
-    //return result.map ((item)=>item.data)
   }
 
   async getWithHeader(id) {
     if (this.isWeb) {
-      const all = await this.getAll();
-      return all.find((r) => r.id === id) || null;
+      const all = await this._getAllLocal();
+      return all.find((r) => r._id === id) || null;
     }
-    let aux = await this.getAll("SELECT * FROM records where id=?", [id]);
-    aux == [] ? {} : aux[0];
+    const rows = await this.db.getAllAsync ("SELECT * FROM documents where _id=?", [id])
+    return !rows || rows.length === 0 ? false : rows[0];
   }
 
-  async update(id, newData) {
-    const result = await this.saveLocal(newData, id);
-    return result;
-  }
-
+  /**
+   * Elimina un documento
+   * @param {string} id - ID del documento
+   * @returns {Promise<boolean>} true si se eliminó correctamente
+   */
   async delete(id) {
+    await this._ensureInitialized();
+    
     try {
-      if (this.isWeb) await this.localDB.delete("records", id);
-      else
-        await this.localDB.execAsync(`DELETE FROM records WHERE id = ?`, [id]);
-
-      // Eliminar remoto
-      const res = await this._fetchWithTimeout(`${this.couchUrl}/${this.tableName}/${id}`);
-      if (res.ok) {
-        const doc = await res.json();
-        await this._fetchWithTimeout(
-          `${this.couchUrl}/${this.tableName}/${id}?rev=${doc._rev}`,{method: "DELETE"})
+      const doc = await this._getLocal(id);
+      
+      if (!doc) {
+        console.warn(`[DB:${this.dbName}] Documento ${id} no encontrado`);
+        return false;
       }
-    } catch (err) {
-      console.warn("Error borrando remoto:", err);
+      
+      const deletedDoc = {
+        ...doc,
+        _deleted: true,
+        _rev: this._incrementRev(doc._rev),
+        syncStatus: 'pending'
+      };
+      
+      await this._putLocal(deletedDoc);
+      
+      //console.log(`[DB:${this.dbName}] ✓ Documento ${id} marcado como eliminado`);
+      
+      // Si es remoto, sincronizar inmediatamente
+      if (this.isRemote) {
+        this._syncDocumentToRemote(deletedDoc).catch(err => {
+          console.error(`[DB:${this.dbName}] Error sincronizando eliminación:`, err);
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error en delete:`, error);
+      throw error;
     }
+  }
+
+  /**
+   * Obtiene todos los documentos (no eliminados)
+   * @param {Object} query - Filtros opcionales (se buscan en el campo 'data')
+   * @returns {Promise<Array>} Array de documentos
+   */
+  async getAll(query = {}) {
+    await this._ensureInitialized();
+    
+    try {
+      const allDocs = await this._getAllLocal();
+      // Filtrar eliminados
+      let docs = allDocs.filter(doc => !doc._deleted);
+
+      if (query!={}){
+        // Aplicar query si existe (buscar en el campo 'data')
+        if (Object.keys(query).length > 0) {
+          docs = docs.filter(doc => {
+            // Buscar en el campo 'data' si existe
+            const dataToSearch = doc.data || doc;
+            return Object.keys(query).every(key => {
+              return dataToSearch[key] === query[key];
+            });
+          });
+        }
+      }
+      // mm - si trae el campo data lo devuelvo sino el doc entero
+
+      return docs.map ((item)=> ({ ...item.data || item, id : item._id}));
+
+    } catch (error) {
+      //console.error(`[DB:${this.dbName}] Error en getAll:`, error);
+      //console.error(`[DB:${this.dbName}] Estado: initialized=${this.initialized}, db=${!!this.db}, isWeb=${this.isWeb}`);
+      //throw error;
+    }
+  }
+
+  /**
+   * Busca documentos que coincidan con un query
+   * @param {Object} query - Objeto con criterios de búsqueda (se buscan en el campo 'data')
+   * @returns {Promise<Array>} Array de documentos que coinciden
+   */
+  async find(query) {
+    let result = await this.getAll(query);
+    return result
+  }
+
+  // ==================== MÉTODOS LOCALES ====================
+
+  // mm - por compatibilidad con lo que ya tengo
+  async add (doc, id)
+  {
+    return (await this.put (id,doc))
+  }
+  /**
+   * Guarda un documento en la base de datos local
+   * @param {Object} doc - Documento a guardar
+   * @param {boolean} shouldEmitEvent - Si debe emitir evento (default: true para cambios locales, false para sync)
+   */
+  async _putLocal(doc, shouldEmitEvent = true) {
+    try{
+      // Validar que la base de datos esté lista
+      await this._validateDatabaseReady();
+
+      // Validar que el documento sea válido
+      if (!doc) {
+        throw new Error('Documento es null o undefined');
+      }
+      
+      if (!doc._id) {
+        throw new Error('Documento no tiene _id');
+      }
+      
+      if (this.isWeb) {
+        await this.db.put('documents', doc);
+      } else {
+        // Si doc.data es string JSON válido → lo uso directamente
+        let dataJson = ""
+        if (typeof doc.data === 'string') {
+          dataJson = doc.data;
+        }
+        // Si es objeto o undefined → lo serializo
+        else {
+          dataJson = JSON.stringify(doc.data || {});
+        }
+
+        // Validar que el JSON no esté vacío o sea inválido
+        if (!dataJson || dataJson === 'null') {
+          throw new Error(`Datos inválidos para documento ${doc._id}`);
+        }
+        /*console.log(`[_putLocal] Guardando documento ${doc._id}:`, {
+          _rev: doc._rev,
+          _deleted: doc._deleted,
+          syncStatus: doc.syncStatus,
+          data: dataJson,
+          dataLength: dataJson.length
+          });
+          */
+        await this.db.runAsync(
+          `INSERT OR REPLACE INTO documents (_id, _rev, _deleted, syncStatus, data) 
+          VALUES (?, ?, ?, ?, ?)`,[
+            doc._id, 
+            doc._rev || '1-new', 
+            doc._deleted ? 1 : 0, 
+            doc.syncStatus || 'synced',
+            dataJson
+          ]
+        );
+        if (this.emitEvent && shouldEmitEvent)
+        {
+          let event = new DB_EVENT ()
+          event.table = this.dbName
+          event._id = doc._id
+          event._rev = doc._rev
+          event.data = doc.data
+          event.source = "LOCAL"
+          emitEvent(EVENT_DB_CHANGE, event)
+        }
+        //console.log(`[_putLocal] ✓ Documento ${doc._id} guardado correctamente`);
+      }
+    }
+    catch (e){
+      console.log(`[_putLocal] Error guardando documento:`, {
+        docId: doc?._id,
+        error: e?.message || String(e),
+        stack: e?.stack || 'No stack trace available'
+      });
+      throw e;
+    }
+  }
+
+  /**
+   * Obtiene un documento de la base de datos local
+   */
+  async _getLocal(id) {
+    try{
+      // Validar que la base de datos esté lista
+      await this._validateDatabaseReady();
+      
+      if (!id) {
+        throw new Error('ID es requerido para obtener documento');
+      }
+      
+      if (this.isWeb) {
+        let aux = await this.db.get('documents', id);
+        return aux == undefined ? false : aux.data 
+      } else {
+        const result = await this.db.getFirstAsync(
+          'SELECT * FROM documents WHERE _id = ?',
+          [id]
+        );
+        
+        if (result!= null) {
+          const row = result;
+          const doc = JSON.parse(row.data);
+          doc._id = row._id;
+          doc._rev = row._rev;
+          doc._deleted = row._deleted === 1;
+          doc.syncStatus = row.syncStatus;
+          return doc;
+        }
+        
+        return false;
+      }
+    }
+    catch (e) {console.log ("getLocal"); console.log (e)}
+    return null
+  }
+
+  /**
+   * Obtiene todos los documentos de la base de datos local
+   */
+  async _getAllLocal() {
+    // Validar que la base de datos esté lista
+    await this._validateDatabaseReady();
+    
+    if (!this.db) {
+      throw new Error(`[DB:${this.dbName}] Conexión a base de datos es null después de validación`);
+    }
+    
+    /// mmm !! se obtiene todo el registro, incluyendo el header
+    if (this.isWeb) {
+      return  await this.db.getAll('documents');
+    } else {
+      try {
+        const result = await this.db.getAllAsync('SELECT * FROM documents');
+        return result.map(row => {
+          const doc = {}
+          doc.data = JSON.parse(row.data);
+          doc._id = row._id;
+          doc._rev = row._rev;
+          doc._deleted = row._deleted === 1;
+          doc.syncStatus = row.syncStatus;
+          return doc;
+        });
+      } catch (error) {
+        console.error(`[DB:${this.dbName}] Error en _getAllLocal (SQLite):`, error);
+        console.error(`[DB:${this.dbName}] Estado db:`, {
+          hasDb: !!this.db,
+          initialized: this.initialized,
+          dbType: typeof this.db
+        });
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Obtiene documentos pendientes de sincronización
+   */
+  async _getPendingDocs() {
+    // Validar que la base de datos esté lista
+    await this._validateDatabaseReady();
+    
+    if (this.isWeb) {
+      const allDocs = await this.db.getAllFromIndex('documents', 'syncStatus', 'pending');
+      return allDocs;
+    } else {
+      const result = await this.db.getAllAsync(
+        'SELECT * FROM documents WHERE syncStatus = ?',
+        ['pending']
+      );
+      
+      return result.map(row => {
+        const doc = JSON.parse(row.data);
+        doc._id = row._id;
+        doc._rev = row._rev;
+        doc._deleted = row._deleted === 1;
+        doc.syncStatus = row.syncStatus;
+        return doc;
+      });
+    }
+  }
+
+  // ==================== SINCRONIZACIÓN ====================
+
+  /**
+   * Inicia el proceso de sincronización periódica
+   */
+  async _startSync() {
+    //console.log(`[DB:${this.dbName}] Iniciando sincronización (cada ${this.syncInterval/1000}s)`);
+    
+    // Sincronización inicial
+    await this._syncFromRemote();
+    await this._syncPendingToRemote();
+    
+    // Programar sincronizaciones periódicas
+    this.syncTimer = setInterval(async () => {
+      if (!this.syncing) {
+        await this._syncFromRemote();
+        await this._syncPendingToRemote();
+      }
+    }, this.syncInterval);
+  }
+
+  /**
+   * Detiene la sincronización periódica
+   */
+  stopSync() {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+      console.log(`[DB:${this.dbName}] Sincronización detenida`);
+    }
+  }
+
+  /**
+   * Sincroniza cambios desde el servidor remoto
+   */
+  async _syncFromRemote() {
+    if (this.syncing) return;
+    
+    this.syncing = true;
+    
+    try {
+      //console.log(`[DB:${this.dbName}] → Sincronizando desde remoto (seq: ${this.lastSeq})`);
+      
+      // Construir URL con filtro por usuario si está configurado
+      let url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${this.lastSeq}`;
+      
+      if (this.userId) {
+        url += `&filter=_selector&selector=${encodeURIComponent(JSON.stringify({userId: this.userId}))}`;
+      }
+      
+      const response = await this._fetchWithTimeout(url, {
+        method: 'GET',
+        headers: this._getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      //console.log(`[DB:${this.dbName}] Cambios recibidos: ${data.results.length}`);
+      
+      // Procesar cada cambio
+      for (const change of data.results) {
+        await this._applyRemoteChange(change);
+      }
+      
+      // Actualizar último seq
+      if (data.last_seq) {
+        await this._saveLastSeq(data.last_seq);
+      }
+      
+      //console.log(`[DB:${this.dbName}] ✓ Sincronización desde remoto completada`);
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error sincronizando desde remoto:`, error);
+    } finally {
+      this.syncing = false;
+    }
+  }
+
+  /**
+   * Aplica un cambio recibido del servidor remoto
+   * Usa resolución de conflictos basada en updatedAt: gana la versión más reciente
+   */
+  async _applyRemoteChange(change) {
+    try {
+      const remoteDoc = change.doc;
+      const localDoc = await this._getLocal(remoteDoc._id);
+      
+      if (!localDoc) {
+        // No existe localmente, aplicar el cambio remoto directamente
+        remoteDoc.syncStatus = 'synced';
+        await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+        //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto nuevo: ${remoteDoc._id}`);
+      } else {
+        // Existe localmente - resolver conflicto por updatedAt
+        const localUpdatedAt = localDoc.data?.updatedAt ? new Date(localDoc.data.updatedAt).getTime() : 0;
+        const remoteUpdatedAt = remoteDoc.data?.updatedAt ? new Date(remoteDoc.data.updatedAt).getTime() : 0;
+        
+        if (remoteUpdatedAt >= localUpdatedAt) {
+          // La versión remota es más reciente o igual - aplicar
+          remoteDoc.syncStatus = 'synced';
+          await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+          //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto más reciente: ${remoteDoc._id} (${new Date(remoteUpdatedAt).toISOString()} >= ${new Date(localUpdatedAt).toISOString()})`);
+        } else {
+          // La versión local es más reciente - mantener local y marcar para sincronizar
+          localDoc.syncStatus = 'pending';
+          await this._putLocal(localDoc, false); // No emitir evento - es una actualización de syncStatus
+          //console.log(`[DB:${this.dbName}] ⚠ Versión local más reciente, manteniendo: ${localDoc._id} (${new Date(localUpdatedAt).toISOString()} > ${new Date(remoteUpdatedAt).toISOString()})`);
+          
+          // Programar sincronización inmediata para enviar la versión local al servidor
+          if (this.isRemote) {
+            this._syncDocumentToRemote(localDoc).catch(err => {
+              console.error(`[DB:${this.dbName}] Error sincronizando versión local más reciente:`, err);
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error aplicando cambio remoto:`, error);
+    }
+  }
+
+  /**
+   * Sincroniza documentos pendientes al servidor remoto
+   */
+  async _syncPendingToRemote() {
+    try {
+      const pendingDocs = await this._getPendingDocs();
+      
+      if (pendingDocs.length === 0) {
+        return;
+      }
+      
+      //console.log(`[DB:${this.dbName}] → Sincronizando ${pendingDocs.length} documentos pendientes`);
+      
+      for (const doc of pendingDocs) {
+        await this._syncDocumentToRemote(doc);
+      }
+      
+      //console.log(`[DB:${this.dbName}] ✓ Sincronización pendientes completada`);
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error sincronizando pendientes:`, error);
+    }
+  }
+
+  /**
+   * Sincroniza un documento individual al servidor remoto
+   * Implementa resolución de conflictos basada en updatedAt: gana la versión más reciente
+   */
+  async _syncDocumentToRemote(doc) {
+    try {
+      const url = `${this.couchUrl}/${this.dbName}/${doc._id}`;
+      
+      // Si el documento está eliminado
+      if (doc._deleted) {
+        // Primero obtener el _rev remoto
+        const getResponse = await this._fetchWithTimeout(url, {
+          method: 'GET',
+          headers: this._getAuthHeaders()
+        });
+        
+        if (getResponse.ok) {
+          const remoteDoc = await getResponse.json();
+          // Eliminar con el _rev correcto
+          const deleteUrl = `${url}?rev=${remoteDoc._rev}`;
+          const deleteResponse = await this._fetchWithTimeout(deleteUrl, {
+            method: 'DELETE',
+            headers: this._getAuthHeaders()
+          });
+          
+          if (deleteResponse.ok) {
+            doc.syncStatus = 'synced';
+            await this._putLocal(doc, false); // No emitir evento - actualización de sync
+            //console.log(`[DB:${this.dbName}] ✓ Documento ${doc._id} eliminado remotamente`);
+          }
+        } else if (getResponse.status === 404) {
+          // Ya no existe remotamente, marcar como sincronizado
+          doc.syncStatus = 'synced';
+          await this._putLocal(doc, false); // No emitir evento - actualización de sync
+        }
+      } else {
+        // Crear o actualizar documento
+        // Primero verificar si existe en el servidor
+        const checkResponse = await this._fetchWithTimeout(url, {
+          method: 'GET',
+          headers: this._getAuthHeaders()
+        });
+        
+        let docToSend;
+        let shouldSync = true;
+        
+        if (checkResponse.ok) {
+          // El documento existe en el servidor - verificar cuál es más reciente
+          const remoteDoc = await checkResponse.json();
+          
+          // Comparar timestamps updatedAt
+          const localUpdatedAt = doc.data?.updatedAt ? new Date(doc.data.updatedAt).getTime() : 0;
+          const remoteUpdatedAt = remoteDoc.data?.updatedAt ? new Date(remoteDoc.data.updatedAt).getTime() : 0;
+          
+          if (localUpdatedAt > remoteUpdatedAt) {
+            // El documento local es más reciente - enviar al servidor
+            docToSend = {
+              _id: doc._id,
+              _rev: remoteDoc._rev, // Usar el _rev del servidor
+              _deleted: doc._deleted,
+              data: doc.data
+            };
+            //console.log(`[DB:${this.dbName}] Cliente más reciente (${new Date(localUpdatedAt).toISOString()} > ${new Date(remoteUpdatedAt).toISOString()}), actualizando servidor`);
+          } else if (remoteUpdatedAt > localUpdatedAt) {
+            // El documento remoto es más reciente - actualizar local
+            //console.log(`[DB:${this.dbName}] Servidor más reciente (${new Date(remoteUpdatedAt).toISOString()} > ${new Date(localUpdatedAt).toISOString()}), actualizando cliente`);
+            remoteDoc.syncStatus = 'synced';
+            await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+            shouldSync = false; // No enviar al servidor
+          } else {
+            // Timestamps iguales o sin updatedAt - enviar al servidor (por defecto)
+            docToSend = {
+              _id: doc._id,
+              _rev: remoteDoc._rev,
+              _deleted: doc._deleted,
+              data: doc.data
+            };
+            //console.log(`[DB:${this.dbName}] Timestamps iguales o sin updatedAt, actualizando servidor`);
+          }
+        } else if (checkResponse.status === 404) {
+          // El documento NO existe en el servidor, NO enviar _rev
+          docToSend = {
+            _id: doc._id,
+            // NO incluir _rev para documentos nuevos
+            _deleted: doc._deleted,
+            data: doc.data
+          };
+          //console.log(`[DB:${this.dbName}] Creando documento nuevo ${doc._id} sin _rev`);
+        } else {
+          // Error al verificar
+          throw new Error(`Error verificando documento: HTTP ${checkResponse.status}`);
+        }
+        
+        // Enviar el documento solo si debe sincronizarse
+        if (shouldSync) {
+          const response = await this._fetchWithTimeout(url, {
+            method: 'PUT',
+            headers: {
+              ...this._getAuthHeaders(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(docToSend)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            // Actualizar con el _rev del servidor
+            doc._rev = result.rev;
+            doc.syncStatus = 'synced';
+            await this._putLocal(doc, false); // No emitir evento - actualización de syncStatus
+            //console.log(`[DB:${this.dbName}] ✓ Documento ${doc._id} sincronizado remotamente con _rev ${result.rev}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[DB:${this.dbName}] Error HTTP ${response.status} al sincronizar ${doc._id}:`, errorText);
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error sincronizando documento ${doc._id}:`, error);
+    }
+  }
+
+  // ==================== METADATOS Y SEQ ====================
+
+  /**
+   * Carga el último seq guardado
+   */
+  async _loadLastSeq() {
+    try {
+      if (this.isWeb) {
+        const metadata = await this.db.get('metadata', 'lastSeq');
+        this.lastSeq = metadata ? metadata.value : 0;
+      } else {
+        const result = await this.db.getAllAsync(
+          'SELECT value FROM metadata WHERE key = ?',
+          ['lastSeq']
+        );
+        this.lastSeq = result.length > 0 ? parseInt(result[0].value) : 0;
+      }
+      //console.log(`[DB:${this.dbName}] Último seq cargado: ${this.lastSeq}`);
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error cargando lastSeq:`, error);
+      this.lastSeq = 0;
+    }
+  }
+
+  /**
+   * Guarda el último seq
+   */
+  async _saveLastSeq(seq) {
+    try {
+      this.lastSeq = seq;
+      
+      if (this.isWeb) {
+        await this.db.put('metadata', { key: 'lastSeq', value: seq });
+      } else {
+        await this.db.execAsync(
+          'INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)',
+          ['lastSeq', seq.toString()]
+        );
+      }
+    } catch (error) {
+      console.error(`[DB:${this.dbName}] Error guardando lastSeq:`, error);
+    }
+  }
+
+  // ==================== UTILIDADES ====================
+
+  /**
+   * Fetch con timeout
+   */
+  async _fetchWithTimeout(url, options = {}) {
+    const timeout = options.timeout || this.fetchTimeout;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error(`Timeout después de ${timeout}ms`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene headers de autenticación
+   */
+  _getAuthHeaders() {
+    if (this.username && this.password) {
+      const credentials = btoa(`${this.username}:${this.password}`);
+      return {
+        'Authorization': `Basic ${credentials}`
+      };
+    }
+    return {};
+  }
+
+  /**
+   * Genera un ID único
+   */
+  _generateId() {
+    return getUId()
+    //return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  /**
+   * Incrementa el número de revisión
+   */
+  _incrementRev(rev) {
+    if (!rev) return '1-' + this._generateId();
+    
+    const [num, hash] = rev.split('-');
+    const newNum = parseInt(num) + 1;
+    return `${newNum}-${this._generateId()}`;
+  }
+
+  /**
+   * Compara dos revisiones
+   * @returns {number} 1 si rev1 > rev2, -1 si rev1 < rev2, 0 si iguales
+   */
+  _compareRevs(rev1, rev2) {
+    const [num1] = rev1.split('-');
+    const [num2] = rev2.split('-');
+    return parseInt(num1) - parseInt(num2);
+  }
+
+  /**
+   * Asegura que la DB esté inicializada
+   */
+  async _ensureInitialized() {
+    let attempts = 0;
+    while (!this.initialized && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (!this.initialized) {
+      throw new Error(`[DB:${this.dbName}] Timeout esperando inicialización`);
+    }
+    
+    // Validar que la conexión a la base de datos esté disponible
+    if (!this.db) {
+      throw new Error(`[DB:${this.dbName}] Base de datos no está disponible`);
+    }
+  }
+
+  /**
+   * Valida que la base de datos esté lista para transacciones
+   */
+  async _validateDatabaseReady() {
+    if (!this.initialized) {
+      console.warn(`[DB:${this.dbName}] Base de datos no inicializada, intentando reinicializar...`);
+      try {
+        await this.initDB();
+      } catch (error) {
+        throw new Error(`[DB:${this.dbName}] Falló la reinicialización: ${error?.message || String(error)}`);
+      }
+    }
+    
+    if (!this.db) {
+      console.warn(`[DB:${this.dbName}] Conexión no disponible, intentando reabrir...`);
+      try {
+        if (this.isWeb) {
+          await this._initIndexedDB();
+        } else {
+          await this._initSQLite();
+        }
+      } catch (error) {
+        throw new Error(`[DB:${this.dbName}] Falló la reconexión: ${error?.message || String(error)}`);
+      }
+    }
+    
+    // Para SQLite, verificar que la conexión esté activa
+    if (!this.isWeb && this.db) {
+      try {
+        // Verificar que la conexión SQLite esté activa
+        //await this.db.getAllAsync('SELECT 1');
+      } catch (error) {
+        console.error(`[DB:${this.dbName}] Error en validación SQLite:`, error);
+        // Intentar reabrir la base de datos una vez más
+        try {
+          console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
+          this.db = await SQLite.openDatabaseAsync(this.dbName);
+          console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
+        } catch (retryError) {
+          throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error?.message || String(error)}`);
+        }
+      }
+    }
+  }
+
+  // ==================== LIMPIEZA ====================
+
+  /**
+   * Cierra la conexión y detiene sincronización
+   */
+  async close() {
+    console.log(`[DB:${this.dbName}] Cerrando...`);
+    
+    this.stopSync();
+    
+    if (this.isWeb && this.db) {
+      this.db.close();
+    }
+    
+    this.initialized = false;
+    this.db = null;
+    
+    console.log(`[DB:${this.dbName}] ✓ Cerrado`);
+  }
+
+  /**
+   * Elimina completamente la base de datos
+   */
+  async destroy() {
+    console.log(`[DB:${this.dbName}] Destruyendo base de datos...`);
+    
+    await this.close();
+    
+    if (this.isWeb) {
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(this.dbName);
+        request.onsuccess = resolve;
+        request.onerror = reject;
+      });
+    } else {
+      this.db = await SQLite.openDatabaseAsync(this.dbName);
+      await this.db.execAsync('DROP TABLE IF EXISTS documents');
+      await this.db.execAsync('DROP TABLE IF EXISTS metadata');
+      this.db = null;
+    }
+    
+    console.log(`[DB:${this.dbName}] ✓ Base de datos destruida`);
   }
 }
+
+export default DB;

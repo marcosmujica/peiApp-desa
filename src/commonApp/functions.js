@@ -1,4 +1,4 @@
-import { TICKET } from "./dataTypes";
+import 'react-native-get-random-values'
 import { v4 as uuidv4 } from 'uuid';
 import { 
   REPEAT_WEEKLY, 
@@ -9,6 +9,7 @@ import {
   REPEAT_QUADRIMONTHLY,
   REPEAT_ANNUALY 
 } from './constants';
+import { Platform } from "react-native";
 
 export function getDayName(fecha = new Date())
 {
@@ -19,7 +20,13 @@ export function getDayName(fecha = new Date())
 export function getMonthName (fecha = new Date())
 {return (fecha.toLocaleString('es-ES', { month: 'long' }))};
 
-export const getUId = () => {return uuidv4()}
+export const getUId = () => { return uuidv4()}
+
+export const getBigUId = () => {
+  return getUId() + getUId()
+}
+
+  //return }
 
 export const formatDateToText = (dateString) => {
   try{
@@ -100,47 +107,6 @@ export const validateNumeric = (number) =>
   return regex.test (number) 
 }
 
-// mm - creo un nuevo ticket con los datos basicos de un ticket existente pasado como parametro
-export const duplicateTicket= ( ticket)=>
-{
-  let aux = new TICKET()
-
-  aux.idTicketGroupBy = ticket.idTicketGroupBy // mm - para agrupar los ticket por este id para saber el grupo de tickets que se crearon a partir de este
-  //aux.idUser = ticket.idUser //mm - usuario al cual pertenece el ticket
-  aux.idUserCreatedBy = ticket.idUserCreatedBy 
-  aux.idTicketGroup = ticket.idTicketGroup
-  aux.type = ticket.type
-  aux.currency = ticket.currency
-  aux.initialAmount = ticket.amount // mm - monto inicial del ticket porque puede cambiar despues
-  aux.amount = ticket.amount
-  aux.netAmount = ticket.netAmount  // mm -!!! hay que poner otro campo para las perdidas del ticket, cuanto se gasto
-  aux.pay = {
-    expensesCategory: ticket.pay.expensesCategory
-  }
-  aux.collect = {
-    areaWork: ticket.collect.areaWork, // mm - a que area de trabajo se asigna el ticket
-    billsNote: ticket.collect.billsNote, 
-    billsAmount: ticket.collect.billsAmount,
-    billsCategory: ticket.collect.billsCategory
-  }
-  aux.way = ticket.way
-  aux.ticketType = ticket.ticketType  /// mm - si es de un ticket recurrente o uno solo
-  aux.title = ticket.title + " - DUPLICADO" // mm - titulo del ticket
-  aux.note = ticket.note // mm - descripcion del ticket
-  aux.notePrivate = ticket.notePrivate // mm - descripcion privada del ticket, para guardar informacion que solo ve el creador
-  0
-  aux.metadata = {
-    notes: ticket.metadata.notes,
-    externalReference: ticket.metadata.externalReference // mm - referencia externa del ticket por ej factura_001
-  }
-  aux.paymentInfo = {
-    paidAt: ticket.paymentInfo.paidAt,
-    paymentMethod: ticket.paymentInfo.paymentMethod,
-    transactionId: ticket.paymentInfo.transactionId
-  }
-
-  return (aux)
-}
 
 // Resolve country code for device public IP. If `ip` is provided it will be used,
 // otherwise the function will first resolve the device's public IP and then query ipapi.

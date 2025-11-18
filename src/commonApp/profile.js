@@ -2,7 +2,6 @@ import {db_addGroupByTicket, db_getLocalProfile, db_saveProfile, db_createIndexe
 import {GROUP_BY_TICKETS} from "./dataTypes"
 import { getUId } from "./functions"
 import {USER_PREFIX_GROUP, MAIN_GROUP_BY_COLLECT, MAIN_GROUP_BY_PAY, MAIN_GROUP_BY_INVESTMENT} from "./constants"
-import { v4 as uuidv4 } from 'uuid';
 
 let _profile = {}
 

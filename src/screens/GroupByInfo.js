@@ -13,7 +13,6 @@ import { db_getGroupByInfo, db_getTicketsIdGroupBy, db_getGroupInfo } from "../c
 import { formatDateToText, formatNumber } from "../commonApp/functions";
 import { getProfile } from "../commonApp/profile";
 import { ellipString } from "../common/helpers";
-import MediaViewer from "../components/MediaViewer";
 import { GROUP_BY_TICKETS } from "../commonApp/dataTypes";
 import SearchBar from "../components/SearchBar";
 import { getFileAndUpload } from "../commonApp/attachFile";
@@ -141,7 +140,7 @@ const GroupByInfo = ({ navigation, route }) => {
 
       // Actualizar el avatar con un nuevo key para forzar la recarga
       setAvatarKey(Date.now());
-      setAvatarURL(`${URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + idGroupBy + ".jpg"}?t=${Date.now()}`);
+      setAvatarURL(idGroupBy + ".jpg?t=" +Date.now());
       setIsLoading(false);
     } catch (error) {
       showAlertModal("Error", "Ocurrió un error al procesar la imagen. Por favor intente nuevamente.");
@@ -154,7 +153,7 @@ const GroupByInfo = ({ navigation, route }) => {
     // El useEffect se encargará de aplicar el filtro automáticamente
   }
   useEffect(() => {
-    setAvatarURL(`${URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + idGroupBy + ".jpg"}`);
+    setAvatarURL(idGroupBy + ".jpg?t=" +Date.now());
 
     const off = localData.onEvent(EVENT_LOCAL_LISTVIEW_UPDATED, (doc) => {
       loadData()
@@ -283,7 +282,7 @@ const GroupByInfo = ({ navigation, route }) => {
       <AnimatedTopBar
         scroll={scroll}
         scrollOffset={scrollOffset}
-        uri={avatarURL}
+        uri={URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + avatarURL}
         name={groupByInfo.name}
         onImagePress={handleImagePress}
         onCameraPress={changeAvatar}
@@ -362,7 +361,7 @@ const GroupByInfo = ({ navigation, route }) => {
           getStyles(mode).floatingBtn,
           {
             position: "absolute",
-            bottom: 30,
+            bottom: 80,
             right: 20,
             zIndex: 1000,
             elevation: 8,

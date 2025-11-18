@@ -71,8 +71,8 @@ const lightStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 15,
-    paddingVertical: 0,
-    borderRadius: 15,
+    paddingVertical: 5,
+    borderRadius: 25,
     marginVertical: 10,
   },
   searchBarInput: {
@@ -122,7 +122,14 @@ const lightStyles = StyleSheet.create({
     marginHorizontal: 3,
   },
   loading: {
-    ...StyleSheet.absoluteFillObject,
+       ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    elevation: 9999,
+  },
+    /*...StyleSheet.absoluteFillObject,
     backgroundColor: colors.white,
     color: colors.gray90,
     justifyContent: "center",
@@ -134,7 +141,7 @@ const lightStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
+  },*/
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -317,6 +324,14 @@ const lightStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 30,
   },
+  attachBtn: {
+    width: "100%",
+    backgroundColor: colors.lightSecondary,
+    ...tStyles.centery,
+    color: colors.white,
+    paddingVertical: 12,
+    borderRadius: 30,
+  },
   info: {
         backgroundColor: colors.white,
         paddingBottom: 20,
@@ -397,13 +412,7 @@ const darkStyles = StyleSheet.create({
 
   loading: {
     ...lightStyles.loading,
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.dark,
-    color: colors.white,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999,
-    elevation: 10,
   },
   normalText: {
     ...lightStyles.normalText,
@@ -478,6 +487,10 @@ const darkStyles = StyleSheet.create({
   },
   infoBtn: {
     ...lightStyles.infoBtn,
+    color: colors.white,
+  },
+  attachBtn: {
+    ...lightStyles.attachBtn,
     color: colors.white,
   },
   bigText: {

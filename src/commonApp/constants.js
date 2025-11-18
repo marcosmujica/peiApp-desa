@@ -103,6 +103,7 @@ export const USER_PREFIX_USER = "u-"
 export const USER_PREFIX_PHONE = "p-"
 export const USER_PREFIX_GROUP = "g-"
 export const USER_PREFIX_GROUP_BY = "gb-"
+export const PREFIX_DOCUMENT = "d-"
 
 export const USER_TYPE_USER = "USER"
 export const USER_TYPE_PHONE = "PHONE"

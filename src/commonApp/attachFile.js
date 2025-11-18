@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { v4 as uuidv4 } from 'uuid';
 import { URL_FILE_UPLOAD} from "./constants"
 import { Platform } from "react-native";
 import * as ImagePicker from 'expo-image-picker'
@@ -7,6 +6,7 @@ import * as FileSystem from 'expo-file-system'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import AppContext from "../context/appContext";
+import { getUId } from "./functions";
 
 
 
@@ -180,7 +180,7 @@ export async function getFileAndUpload (idUser, isAvatar, mediaType)
         if (!asset) return
 
     // Build optimistic message and upload
-        const msgFileId = `${idUser}_${uuidv4()}`;
+        const msgFileId = `${idUser}_${getUId()}`;
         const file = { uri: asset.uri, filename: msgFileId, type: asset.type || (requested === 'file' ? 'application/pdf' : 'image/jpeg') };
         console.log (file)
         const uploadedFile = await uploadFileToServer(idUser, isAvatar, file);

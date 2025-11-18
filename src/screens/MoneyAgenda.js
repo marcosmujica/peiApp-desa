@@ -438,7 +438,7 @@ const MoneyAgenda = ({ navigation, route }) => {
   return (
     <SafeAreaView style={getStyles(colorScheme).container}>
       <Loading loading={loading} title="Trabajando, por favor espera..." />
-      <TitleBar title="Agenda de Pagos" goBack={true}  />
+      <TitleBar title="Agenda de Pagos y Cobros" goBack={true}  />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
         <View style={[getStyles(colorScheme).container, { paddingHorizontal: 15 }]}>
           <SectionList

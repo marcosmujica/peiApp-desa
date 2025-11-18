@@ -1,6 +1,5 @@
 import { DB } from "./DB";
 import {DB_REMOTE, LOCAL, RATING, OTP, LOCAL_PROFILE, USER, _ACCESS} from "./dataTypes"
-import { getProfile } from './profile';
 import { Platform } from 'react-native';
 import dbInstance from './dbInstance';
 import {deepObjectMerge} from './functions';

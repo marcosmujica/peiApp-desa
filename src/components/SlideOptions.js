@@ -25,18 +25,16 @@ const SlideOptions = ({ links, setOptions }) => {
     return(
         <TouchableWithoutFeedback onPress={() => setOptions(false)}>
             <View style={styles.overlay}>
-                <TouchableWithoutFeedback>
-                    <Animated.View style={ [getStyles(mode).slideOptionsContainer, { top }] }>
-                        {
-                            links.map((item) => (
-                                <TouchableOpacity onPress={ () => {setOptions(false); item.onPress()}} style={ styles.link } key={ item.id }>
-                                    <Text style={getStyles(mode).slideOptionsText}>{ item.title }</Text>
-                                </TouchableOpacity>
-                            ))
-                        }
-                        
-                    </Animated.View>
-                </TouchableWithoutFeedback>
+                <Animated.View style={ [getStyles(mode).slideOptionsContainer, { top }] }>
+                    {
+                        links.map((item) => (
+                            <TouchableOpacity onPress={ () => {setOptions(false); item.onPress()}} style={ styles.link } key={ item.id }>
+                                <Text style={getStyles(mode).slideOptionsText}>{ item.title }</Text>
+                            </TouchableOpacity>
+                        ))
+                    }
+                    
+                </Animated.View>
             </View>
         </TouchableWithoutFeedback>
     )

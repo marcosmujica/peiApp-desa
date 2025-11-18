@@ -48,7 +48,7 @@ const Home = ({ navigation }) => {
   const colorScheme = useColorScheme();
   const { options, setOptions } = React.useContext(AppContext);
   const [filter, setFilter] = React.useState(FILTER_TICKETS);
-  const [filterTicket, setFilterTicket] = React.useState(FILTER_TICKETS_ALL);
+  const [filterTicket, setFilterTicket] = React.useState(""); // mm - hay que dejarlo en blanco para que por default tome los abiertos
   const [refreshing, setRefreshing] = useState(false);
   const [filterWay, setFilterWay] = useState(FILTER_TICKETS_CLOSE);
 
@@ -118,55 +118,16 @@ const Home = ({ navigation }) => {
     loadData ()
   }
 
-  // mm - función para actualizar un ticket específico en la lista sin recargar todo
-  function updateTicketInList(idTicket, updatedItem) {
-    setDataTicket((prevData) => {
-      const index = prevData.findIndex((t) => t.idTicket === idTicket);
-      let newData;
-
-      if (index !== -1) {
-        // Actualizar ticket existente
-        newData = [...prevData];
-        newData[index] = { ...newData[index], ...updatedItem };
-      } else {
-        // Agregar nuevo ticket
-        newData = [...prevData, updatedItem];
-      }
-
-      // Reordenar por timestamp
-      newData.sort((a, b) => {
-        const dateA = new Date(a.ts).getTime();
-        const dateB = new Date(b.ts).getTime();
-        return dateB - dateA;
-      });
-
-      return newData;
-    });
-
-    // Actualizar también la lista de búsqueda
-    setDataListSearch((prevData) => {
-      const index = prevData.findIndex((t) => t.idTicket === idTicket);
-      let newData;
-
-      if (index !== -1) {
-        newData = [...prevData];
-        newData[index] = { ...newData[index], ...updatedItem };
-      } else {
-        newData = [...prevData, updatedItem];
-      }
-
-      newData.sort((a, b) => {
-        const dateA = new Date(a.ts).getTime();
-        const dateB = new Date(b.ts).getTime();
-        return dateB - dateA;
-      });
-
-      return newData;
-    });
-  }
-
   async function checkDB() {
+
+    // mm -- inicializo base de datos principales para que se sincronicen
     db_initListener();
+
+    db_openDB (db_TICKET)
+    db_openDB (db_TICKET_LOG_STATUS)
+    db_openDB (db_TICKET_CHAT)
+
+
   }
 
   useEffect(() => {
@@ -176,6 +137,7 @@ const Home = ({ navigation }) => {
     checkDB();
     loadData();
 
+
     const off = localData.onEvent(EVENT_LOCAL_LISTVIEW_UPDATED, (doc) => {
       console.log("VOY A PROCESAR EVENTO");
       processEvent(doc);
@@ -184,7 +146,7 @@ const Home = ({ navigation }) => {
     // mm - al hacer el focus recargo los datos
     const onFocus = () => {
 
-    };
+  };
 
     const unsubscribe = navigation.addListener("focus", onFocus);
 
@@ -242,10 +204,17 @@ const Home = ({ navigation }) => {
       });
       // mm - crear nuevos arrays para forzar re-render
       const newDataTicket = dataTicketBD ? [...dataTicketBD] : [];
-      const newDataListSearch = dataTicketBD ? [...dataTicketBD] : [];
+      //const newDataListSearch = dataTicketBD ? [...dataTicketBD] : [];
       
       setDataTicket(newDataTicket);
-      setDataListSearch(newDataListSearch);
+
+      // mm - si es la primera vez cargo por los abiertos
+      if (filterTicket == "")
+      {
+        setDataListSearch(newDataTicket.filter((item) => item.isOpen === true))
+        setFilterTicket (FILTER_TICKETS_OPEN)
+      }
+      
     } catch (e) {
       console.log("error en loaddata");
       console.log(e);
@@ -270,7 +239,7 @@ const Home = ({ navigation }) => {
               {filter == FILTER_TICKETS && (
                 <BadgeBtn
                   items={[
-                    { id: FILTER_TICKETS_ALL, title: "Todos", active: filterTicket == FILTER_TICKETS_ALL, onClick: () => filterTicketByStatus(FILTER_TICKETS_ALL) },
+                    //{ id: FILTER_TICKETS_ALL, title: "Todos", active: filterTicket == FILTER_TICKETS_ALL, onClick: () => filterTicketByStatus(FILTER_TICKETS_ALL) },
                     { id: FILTER_TICKETS_OPEN, title: "Pendientes", active: filterTicket == FILTER_TICKETS_OPEN, onClick: () => filterTicketByStatus(FILTER_TICKETS_OPEN) },
                     { id: FILTER_TICKETS_CLOSE, title: "Cumplidos", active: filterTicket == FILTER_TICKETS_CLOSE, onClick: () => filterTicketByStatus(FILTER_TICKETS_CLOSE) },
                   ]}

@@ -8,12 +8,16 @@ import AppContext from "../context/appContext";
 import { tStyles, colors, fonts } from "../common/theme";
 import { getStyles } from "../styles/home";
 import "../commonApp/global";
+import Loading from "../components/Loading";
 import { useNavigation } from "@react-navigation/native";
 import { Fontisto } from "@expo/vector-icons";
 import { validateNumeric, formatNumber } from "../commonApp/functions";
 import { getProfile } from "../commonApp/profile";
 import { TICKET, TICKET_LOG_DETAIL_STATUS } from "../commonApp/dataTypes";
 import { currencyList } from "../commonApp/currency";
+import AttachmentPickerHost, { hideAttachmentPicker, showAttachmentPicker } from "../components/AttachmentPicker";
+import { getFileAndUpload } from "../commonApp/attachFile";
+import { ellipString } from "../common/helpers";
 import {
   db_addTicketLogStatus,
   db_getTicket,
@@ -45,7 +49,8 @@ const TicketEdit = ({ idTicket }) => {
   const [currencyName, setCurrencyName] = React.useState("");
   const [payMethodInfo, setPayMethodInfo] = React.useState("");
   const [isCollectionProcedure, setIsCollectionProcedure] = React.useState("");
-
+  const [docAttachmentFilename, setDocAttachmentFilename] = React.useState ("")
+  const [docAttachment, setDocAttachment] = React.useState ({})
   const [showConfirmButton, setShowConfirmButton] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = React.useRef(null);
@@ -76,6 +81,30 @@ const TicketEdit = ({ idTicket }) => {
   }, []); // <- array vacío = solo se ejecuta una vez (cuando se monta)
 
 
+  async function attachDocument() {
+    try {
+      debugger
+      setDocAttachmentFilename("");
+      setDocAttachment({});
+      
+      const res = await showAttachmentPicker();
+      if (!res) {
+        console.log("No se seleccionó ninguna opción");
+        return;
+      }
+
+      setLoading(true);
+      let uploadedFile = await getFileAndUpload(profile.idUser, false, res.type);
+      debugger
+      setLoading(false);
+      if (!uploadedFile) return;
+      setDocAttachment(uploadedFile);
+      setDocAttachmentFilename(uploadedFile.fileName);
+    } catch (e) {
+      console.log("attachdoc: " + JSON.stringify(e));
+      setLoading(false);
+    }
+  }
   async function loadData() {
     //setSelectedDate(new Date().toLocaleDateString());
 
@@ -104,7 +133,8 @@ const TicketEdit = ({ idTicket }) => {
     ticketLog.idTicket = idTicket;
     ticketLog.type = TICKET_LOG_DETAIL_TYPE_CHANGE_DATA; // mm - tipo de log de datos
     ticketLog.idStatus = idStatus;
-    ticketLog.idUser = profile.idUser; // mm - usuario que hace el cambio de estado porque puede ser el cliente o el owner que lo hace
+    ticketLog.idUserFrom = profile.idUser
+    ticketLog.idUserTo = ticket.idUserTo
     ticketLog.isPrivate = true; // mm - si el estado solo puede verlo el creador
     ticketLog.message = message;
     ticketLog.data = data
@@ -148,7 +178,6 @@ const TicketEdit = ({ idTicket }) => {
     let edit = false
 
     let noteAux = aux.note // mm - lo guardo porque lo cambio despues
-
     if (ticket.title != ticketName){edit = true; aux.title = ticketName}
     if (ticket.note != ticketDesc){edit = true; aux.note = ticketDesc; await addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_DESC, `Se cambio la descripción\n\n-- Antes era \n${noteAux}\n\n-- Ahora es \n${ticketDesc}`, {note: ticketDesc})}
     if (ticket.notePrivate != ticketDescPrivate){edit = true; aux.notePrivate = ticketDescPrivate}
@@ -157,6 +186,7 @@ const TicketEdit = ({ idTicket }) => {
     if (ticket.paymentInfo.paymentMethod != payMethodInfo ){edit = true; aux.paymentInfo.paymentMethod = payMethodInfo; addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_PAY_INFO , "Se cambio la información de pago a " + payMethodInfo, {payMethodInfo : payMethodInfo})}
     if (ticket.paymentInfo.paymentMethod != payMethodInfo ){edit = true; aux.paymentInfo.paymentMethod = payMethodInfo; addStatusLog(TICKET_LOG_DETAIL_TYPE_CHANGE_DATA_PAY_INFO , "Se cambio la información de pago a " + payMethodInfo, {payMethodInfo : payMethodInfo})}
     if (ticket.collectionProcedure != isCollectionProcedure ){edit = true; aux.collectionProcedure = isCollectionProcedure;}
+    if (docAttachmentFilename != "" ){edit = true; aux.document.mediaType = docAttachment.mediaType; aux.document.uri = docAttachment.remotefilename;}
 
     if(edit) {
       console.log ("GRABAR")
@@ -166,6 +196,7 @@ const TicketEdit = ({ idTicket }) => {
   }
   
   return (
+    <View style={{ paddingBottom: 130 }}>
     <KeyboardAwareScrollView
       ref={scrollRef}
       // Ajustamos el paddingBottom para considerar el área segura inferior + espacio extra
@@ -182,6 +213,8 @@ const TicketEdit = ({ idTicket }) => {
       viewIsInsideTabBar={true}
       showsVerticalScrollIndicator={false}
     >
+      <Loading loading={loading} title="Trabajando, por favor espera..." />
+      
       {profile.idUser != ticket.idUserCreatedBy && (
         <View style={{ padding: 10 }}>
           <Text style={getStyles(mode).sectionTitle}>
@@ -218,6 +251,26 @@ const TicketEdit = ({ idTicket }) => {
               />
             </View>
           </View>
+          <TouchableOpacity
+            style={getStyles(mode).attachBtn}
+            onPress={() => {
+              attachDocument();
+            }}>
+              {docAttachmentFilename != "" && 
+              <Text style={[fonts.medium, {fontSize: 13 }]}>
+                <Fontisto name="paperclip" /> {ellipString(docAttachmentFilename, 20)}
+              </Text>}
+              {docAttachmentFilename == "" && 
+              <Text
+                style={[
+                  fonts.medium,
+                  {
+                    fontSize: 13,
+                  },
+                ]}>
+                <Fontisto name="paperclip" /> Adjuntar documento o imágen
+              </Text>}
+          </TouchableOpacity>
           <View style={{ padding: 10 }}>
             <Text style={getStyles(mode).sectionTitle}>Nota Privada</Text>
             <View style={getStyles(mode).searchBar}>
@@ -314,7 +367,9 @@ const TicketEdit = ({ idTicket }) => {
           </View>
         </View>
       )}
+      <AttachmentPickerHost camera={true} gallery={true} file={true} />
     </KeyboardAwareScrollView>
+    </View>
   );
 };
 const styles = StyleSheet.create({

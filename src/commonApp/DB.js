@@ -27,9 +27,9 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { openDB } from 'idb';
-import { v4 as uuidv4 } from 'uuid';
 import {EVENT_DB_CHANGE, emitEvent } from "./DBEvents";
 import { DB_EVENT } from './dataTypes';
+import { getUId } from './functions';
 
 // ==================== CONFIGURACIÓN ====================
 const SYNC_INTERVAL = 30000; // 30 segundos
@@ -100,6 +100,7 @@ export class DB {
       
       // Si es remota, iniciar sincronización
       if (this.isRemote) {
+        console.log (this.dbName + " SYNC REMOTO")
         await this._startSync();
       }
     } catch (error) {
@@ -192,7 +193,7 @@ export class DB {
         );
       `);
 /*
-      // Crear índices solicitados
+      // Crear índices soliºcitados
       for (const index of this.indices) {
         await this.db.runAsync(`
           CREATE INDEX IF NOT EXISTS idx_${index} 
@@ -280,7 +281,6 @@ export class DB {
    */
   async update(id, data, rev) {
 
-    console.log ("entro0")
     await this._ensureInitialized();
     
     try {
@@ -510,17 +510,21 @@ export class DB {
             dataJson
           ]
         );
-        if (this.emitEvent && shouldEmitEvent)
-        {
-          let event = new DB_EVENT ()
-          event.table = this.dbName
-          event._id = doc._id
-          event._rev = doc._rev
-          event.data = doc.data
-          event.source = "LOCAL"
-          emitEvent(EVENT_DB_CHANGE, event)
-        }
+        
         //console.log(`[_putLocal] ✓ Documento ${doc._id} guardado correctamente`);
+      }
+      if (this.emitEvent && shouldEmitEvent)
+      {
+        // mm - genero evento de actualizacion
+        let event = new DB_EVENT ()
+        event.table = this.dbName
+        event._id = doc._id
+        event._rev = doc._rev
+        event.data = doc.data
+        event.source = "LOCAL"
+        console.log ("se emite evento en " + this.dbName)
+        console.log (event)
+        emitEvent(EVENT_DB_CHANGE, event)
       }
     }
     catch (e){
@@ -729,7 +733,7 @@ export class DB {
       if (!localDoc) {
         // No existe localmente, aplicar el cambio remoto directamente
         remoteDoc.syncStatus = 'synced';
-        await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+        await this._putLocal(remoteDoc, true); // mm - emito evento porque viene del servidor
         //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto nuevo: ${remoteDoc._id}`);
       } else {
         // Existe localmente - resolver conflicto por updatedAt
@@ -739,7 +743,7 @@ export class DB {
         if (remoteUpdatedAt >= localUpdatedAt) {
           // La versión remota es más reciente o igual - aplicar
           remoteDoc.syncStatus = 'synced';
-          await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+          await this._putLocal(remoteDoc, true); // mm - emito evento porque viene del servidor
           //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto más reciente: ${remoteDoc._id} (${new Date(remoteUpdatedAt).toISOString()} >= ${new Date(localUpdatedAt).toISOString()})`);
         } else {
           // La versión local es más reciente - mantener local y marcar para sincronizar
@@ -993,7 +997,7 @@ export class DB {
    * Genera un ID único
    */
   _generateId() {
-    return uuidv4()
+    return getUId()
     //return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 

@@ -76,7 +76,7 @@ const GroupInfo = ({ navigation, route }) => {
 
       // Actualizar el avatar con un nuevo key para forzar la recarga
       setAvatarKey(Date.now());
-      setAvatarURL(`${URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + idGroup + ".jpg"}?t=${Date.now()}`);
+      setAvatarURL(idGroup + ".jpg?t="+ Date.now());
       setIsLoading(false);
     } catch (error) {
       showAlertModal("Error", "Ocurrió un error al procesar la imagen. Por favor intente nuevamente.");
@@ -85,7 +85,7 @@ const GroupInfo = ({ navigation, route }) => {
   }
 
   useEffect(() => {
-    setAvatarURL(`${URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + idGroup + ".jpg"}`);
+    setAvatarURL(idGroup + ".jpg");
 
     let lastSearchText = ""; // mm - ultimo texto que se esta buscando
 
@@ -147,7 +147,7 @@ const GroupInfo = ({ navigation, route }) => {
       <AnimatedTopBar
         scroll={scroll}
         scrollOffset={scrollOffset}
-        uri={avatarURL}
+        uri={URL_FILE_DOWNLOAD + URL_FILE_SMALL_PREFIX + avatarURL}
         name={groupInfo.name}
         onImagePress={handleImagePress}
         onCameraPress={changeAvatar}

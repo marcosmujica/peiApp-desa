@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import cors from "cors";
 import { fileURLToPath } from "url";
-import { v4 as uuidv4 } from "uuid";
+import { getUId } from "../src/commonApp/functions";
 // 
 // Definir __filename y __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -91,7 +91,7 @@ app.post("/upload", upload.any(), async (req, res) => {
         try {
           const { idUser: bodyIdUser, fileName: bodyFileName, fileType: bodyFileType, isAvatar: bodyIsAvatar } = req.body;
           const b64 = req.body.fileBase64;
-          const fileName = bodyFileName || `${bodyIdUser || 'unknown'}_${uuidv4()}`;
+          const fileName = bodyFileName || `${bodyIdUser || 'unknown'}_${getUId()}`;
           const fileType = bodyFileType || 'application/octet-stream';
           const buffer = Buffer.from(b64, 'base64');
           incomingFile = { buffer, originalname: fileName, mimetype: fileType, size: buffer.length };
@@ -154,7 +154,7 @@ app.post("/upload", upload.any(), async (req, res) => {
     let filename = '';
     // Handle PDFs: save raw buffer as file
     if (mime.includes('/pdf')) {
-      filename = `${idUser}_${uuidv4()}.pdf`;
+      filename = `${idUser}_${getUId()}.pdf`;
       await saveFile(incomingFile.buffer, filename, 'normal');
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.json({ status: true, filename, message: 'PDF guardado correctamente' });
@@ -166,7 +166,7 @@ app.post("/upload", upload.any(), async (req, res) => {
         filename = `${idUser}.jpg`;
         await processAndSaveImage(incomingFile.buffer, filename, 'avatar', 50);
       } else {
-        filename = `${idUser}_${uuidv4()}.jpg`;
+        filename = `${idUser}_${getUId()}.jpg`;
         await processAndSaveImage(incomingFile.buffer, filename, 'small', 200);
       }
       await processAndSaveImage(incomingFile.buffer, filename, 'normal', 800);

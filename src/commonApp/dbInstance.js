@@ -12,10 +12,11 @@ class DatabaseInstance {
                 {name: 'group_ticket', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false,emitEvent: true},
                 {name: 'group_by_ticket', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false,emitEvent: true},
                 {name: 'helpdesk', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false,emitEvent: false},
-                {name: 'ticket_rating', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "LOCAL", created: false, index: [], live: false,emitEvent: false},
                 {name: 'ticket_info', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false,emitEvent: true},
-                {name: 'ticket_view', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "LOCAL", created: false, index: [], live: false, emitEvent: false},
                 {name: 'ticket_repeat', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false, emitEvent: false},
+                
+                {name: 'ticket_view', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "LOCAL", created: false, index: [], live: false, emitEvent: false},
+                {name: 'ticket_rating', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "LOCAL", created: false, index: [], live: false,emitEvent: false},
                 {name: 'local', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "LOCAL", created: false, index: [], live: false, emitEvent: false}
             ];
             DatabaseInstance.instance = this;

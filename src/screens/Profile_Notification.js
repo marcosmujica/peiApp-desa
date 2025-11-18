@@ -23,7 +23,6 @@ import Loading from "../components/Loading";
 import { isLogged, getProfile, setProfile } from "../commonApp/profile";
 import { USER } from "../commonApp/dataTypes";
 import { USER_PREFIX_USER } from "../commonApp/constants";
-import { v4 as uuidv4 } from "uuid";
 import { db_getUserConfig, db_updateUserConfig } from "../commonApp/database";
 import { validateEmail } from "../commonApp/functions";
 

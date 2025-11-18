@@ -6,13 +6,14 @@ import { Fontisto, Entypo, Feather } from "@expo/vector-icons";
 import { colors, fonts, tStyles } from "../common/theme";
 import ImgAvatar from "../components/ImgAvatar";
 import { getStyles } from "../styles/home";
-import { calculateInstancesBetweenDates, formatDateToStringLong, getMonthName, getDayName } from "../commonApp/functions";
+import { calculateInstancesBetweenDates, formatDateToStringLong, getMonthName, getDayName, getUId } from "../commonApp/functions";
 import { db_addRepeatTicket, db_TICKET, db_openDB, db_addTicket, db_getGroupInfo, db_addGroupByTicket, db_addTicketLogStatus, db_addTicketRating, db_addTicketInfo, db_TICKET_INFO, db_TICKET_LOG_STATUS, db_TICKET_REPEAT } from "../commonApp/database";
 import "../commonApp/global";
 import { _contacts, getContactName } from "../commonApp/contacts";
 import { _maxContactPerGroup } from "../commonApp/global";
 import AppContext from "../context/appContext";
-import { v4 as uuidv4 } from "uuid";
+import AttachmentPickerHost, { hideAttachmentPicker, showAttachmentPicker } from "../components/AttachmentPicker";
+import { getFileAndUpload } from "../commonApp/attachFile";
 import {
   TICKET_USE_TYPE_BUSINESS,
   TICKET_USE_TYPE_PERSONAL,
@@ -63,6 +64,8 @@ const NewTicket = ({ navigation, route }) => {
   const [repeatOptions, setRepeatOptions] = React.useState ([])
   const [repeatOption, setRepeatOption] = React.useState (REPEAT_NO_REPEAT)
   const [repeatEndDate, setRepeatEndDate] = React.useState (new Date())
+  const [docAttachmentFilename, setDocAttachmentFilename] = React.useState ("")
+  const [docAttachment, setDocAttachment] = React.useState ({})
   let usersList = route.params ["usersList"] || []
 
   // mm - si no viene un parametro ticketDefault lo inicializo en blanco
@@ -201,7 +204,7 @@ const NewTicket = ({ navigation, route }) => {
         //if (idToUser != profile.idUser) {
           // mm - necesito volver a crear el ticket cada vez para que no de error
           
-          let idTicket = uuidv4()
+          let idTicket = getUId()
           // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
           let ticketInfoPay = new TICKET_INFO_PAY();
           ticketInfoPay.idTicket = idTicket;
@@ -298,7 +301,12 @@ const NewTicket = ({ navigation, route }) => {
           ticket.idTicketGroupBy = idTicketGroupBy;
           ticket.idTicketGroup = idTicketGroup;
           ticket.collectionProcedure = isCollectProcedure
-          
+          if (!docAttachment.remotefilename) {
+          } else {
+            ticket.document.mediaType = docAttachment.type;
+            ticket.document.uri = docAttachment.remotefilename;
+          }
+
           // mm - para cada usuario del grupo le agrego un ticket con la misma info
           let aux = await db_addTicket(idTicket, ticket);
 
@@ -311,7 +319,6 @@ const NewTicket = ({ navigation, route }) => {
         
       }
 
-      debugger
       if (repeatOption != REPEAT_NO_REPEAT)
       {
         let repeat = new TICKET_REPEAT()
@@ -413,6 +420,29 @@ const NewTicket = ({ navigation, route }) => {
     setLoading(false);
   }
 
+  async function attachDocument() {
+    try {
+      setDocAttachmentFilename("");
+      setDocAttachment({});
+      
+      const res = await showAttachmentPicker();
+      if (!res) {
+        console.log("No se seleccionó ninguna opción");
+        return;
+      }
+
+      setLoading(true);
+      let uploadedFile = await getFileAndUpload(profile.idUser, false, res.type);
+      setLoading(false);
+      if (!uploadedFile) return;
+      setDocAttachment(uploadedFile);
+      setDocAttachmentFilename(uploadedFile.fileName);
+    } catch (e) {
+      console.log("attachdoc: " + JSON.stringify(e));
+      setLoading(false);
+    }
+  }
+  
   useEffect(() => {
 
     // mm - abro estas bases antes de todo para que cuando se guarde no demore en abrirlas y el usuario pueda cerrar en la mitad la app
@@ -438,7 +468,7 @@ const NewTicket = ({ navigation, route }) => {
   return (
     <SafeAreaView style={getStyles(mode).container}>
       <Loading loading={loading} title="Trabajando, por favor espera..." />
-      <TitleBar title="Ticket" goBack={true} onGoBack={gotoHome} />
+      <TitleBar title="Nuevo Ticket" goBack={true} onGoBack={gotoHome} />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }} style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
           <View style={[getStyles(mode).row, { padding: 10 }]}>
@@ -607,6 +637,26 @@ const NewTicket = ({ navigation, route }) => {
                     />
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={getStyles(mode).attachBtn}
+                  onPress={() => {
+                    attachDocument();
+                  }}>
+                    {docAttachmentFilename != "" && 
+                    <Text style={[{  fontSize: 13 }]}>
+                      <Fontisto name="paperclip" /> {ellipString(docAttachmentFilename, 20)}
+                    </Text>}
+                    {docAttachmentFilename == "" && 
+                    <Text
+                      style={[
+                        fonts.medium,
+                        {
+                          fontSize: 13,
+                        },
+                      ]}>
+                      <Fontisto name="paperclip" /> Adjuntar documento o imágen
+                    </Text>}
+                </TouchableOpacity>
                 <View style={{ padding: 10 }}>
                   <Text style={getStyles(mode).sectionTitle}>Nota Privada</Text>
                   <View style={getStyles(mode).searchBar}>
@@ -716,6 +766,7 @@ const NewTicket = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <AttachmentPickerHost camera={true} gallery={true} file={true} />
     </SafeAreaView>
   );
 };

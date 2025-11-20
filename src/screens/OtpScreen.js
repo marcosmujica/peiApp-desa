@@ -11,11 +11,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import OtpTextInput from "react-native-text-input-otp";
 import { colors, fonts, tStyles } from "../common/theme";
 import { setProfile, firstLogging, getProfile, saveProfile } from "../commonApp/profile";
-import { db_checkOTP } from "../commonApp/database";
+import { db_saveLocal, db_checkOTP } from "../commonApp/database";
 import AppContext from "../context/appContext";
 import Loading from "../components/Loading";
 import { useState } from "react";
 import { getStyles } from "../styles/home";
+import { LOCAL } from "../commonApp/dataTypes";
 
 const OTPScreen = ({ navigation, route }) => {
   const [visibleBtn, setVisibleBtn] = useState(true);
@@ -41,6 +42,11 @@ const OTPScreen = ({ navigation, route }) => {
         let aux = await db_checkOTP(profile.phone, otp);
         
         if (aux) {
+          debugger
+          // mm - creo el id en el local
+          let local = new LOCAL()
+          local.idUser = profile.phone
+          await db_saveLocal (local)
           await setProfile (profile)
           await firstLogging();
           navigation.navigate("Profile_Info", { idUser: null });

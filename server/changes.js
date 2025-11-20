@@ -26,13 +26,20 @@ const wss = new WebSocketServer({ noServer: true });
 const clients = new Set();
 
 // Manejo de conexiones WebSocket
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
+  // Extraer idUser de los query params de la URL
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const idUser = url.searchParams.get('idUser') || 'unknown';
+  
+  // Guardar idUser como propiedad del websocket
+  ws.idUser = idUser;
+  
   clients.add(ws);
-  console.log("📲 Cliente conectado, total:", clients.size);
+  console.log(`📲 Cliente conectado (idUser: ${idUser}), total:`, clients.size);
 
   ws.on("close", () => {
     clients.delete(ws);
-    console.log("❌ Cliente desconectado, total:", clients.size);
+    console.log(`❌ Cliente desconectado (idUser: ${ws.idUser}), total:`, clients.size);
   });
 });
 
@@ -82,20 +89,29 @@ async function watchDB(dbName) {
             since = change.seq; // actualiza secuencia
             const payload = { db: dbName, change };
 
-            // Envía a todos los clientes conectados
+            // Extraer idUserTo del documento (puede estar en change.doc.data.idUserTo o change.doc.idUserTo)
+            const idUserTo = change.doc?.data?.idUserTo || change.doc?.idUserTo;
+
+            // Envía solo a los clientes cuyo idUser coincida con idUserTo
             let sent = 0;
             for (const client of clients) {
               if (client.readyState === 1) {
+                // Filtrar: solo enviar si idUserTo coincide con el idUser del cliente
+                if (idUserTo && client.idUser !== idUserTo) {
+                  continue; // Saltar este cliente
+                }
+                
                 try {
-		  console.log (payload);
+                  console.log(`📤 Enviando a cliente (idUser: ${client.idUser})`);
                   client.send(JSON.stringify(payload));
                   sent++;
+                  break // mm - ya encontre al usuario, salgo
                 } catch (e) {
                   console.warn(`⚠️ Error enviando a cliente: ${e.message}`);
                 }
               }
             }
-            console.log(`📤 Enviados a ${sent} clientes`);
+            console.log(`📤 Enviados a ${sent} clientes (idUserTo: ${idUserTo || 'N/A'})`);
           } catch (err) {
             console.warn("⚠️ Error procesando línea (JSON):", err.message || err);
             console.debug("Linea cruda:", line);

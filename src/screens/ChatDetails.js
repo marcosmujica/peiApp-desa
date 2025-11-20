@@ -45,6 +45,7 @@ import {
   db_addTicketChat,
   db_getTicket,
   db_getTicketChat,
+  db_getTicketMsgChat,
   db_TICKET_CHAT
 } from "../commonApp/database";
 import TitleBar from "../components/TitleBar";
@@ -206,7 +207,7 @@ const ChatDetails = ({ navigation, route }) => {
       setKeyboardHeight(0);
     };
     
-    const off = onEvent(EVENT_DB_CHANGE, (doc) => {
+    const off = onEvent(EVENT_DB_CHANGE, async (doc) => {
       try {
         // mm - validar que el documento sea del tipo correcto y para este chat
         console.log ("entro un cambio")
@@ -215,6 +216,13 @@ const ChatDetails = ({ navigation, route }) => {
           return;
         }
 
+        let aux = await db_getTicketMsgChat (doc.data.idTicket, doc.data.id)
+debugger
+        // mm - si ya hay un mensaje con el mismo id lo descarto
+        /*if (aux.length>0)
+        {debugger
+          return
+        }*/
         // mm - agregar el mensaje si no existe ya
         setChatData((prev) => {
           // Verificar si ya existe en el array actual por id

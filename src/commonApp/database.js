@@ -1,10 +1,9 @@
 import { DB } from "./DB";
-import {DB_REMOTE, LOCAL, RATING, OTP, LOCAL_PROFILE, USER, _ACCESS} from "./dataTypes"
-import { Platform } from 'react-native';
+import {RATING, OTP, _ACCESS} from "./dataTypes"
 import dbInstance from './dbInstance';
 import {deepObjectMerge} from './functions';
 import dbChanges from './DBChanges';
-
+import {getProfile} from "../commonApp/profile"
 
 export const db_OTP = "otp"
 export const db_TICKET = "ticket"
@@ -27,7 +26,6 @@ const DB_URL = "http://34.39.168.70:5984"
 const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
 const DB_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
 
-
 // Obtener la instancia global de la base de datos
 const _db = dbInstance.getDB();
 
@@ -36,29 +34,15 @@ export async function db_initListener()
     dbChanges.init ()
 }
 
-export async function db_getLocalProfile ()
+export async function db_getProfile ()
 {
     try{
         let aux = await db_getAll(db_PROFILE)
-
         return (aux.length == 0 ? false : aux[0])
-
-        /*if (local.length == 0)
-        {
-            return (new LOCAL_PROFILE())
-        }else
-        {
-            let auxProfile = new LOCAL_PROFILE()
-            await db_add(db_PROFILE, "profile", auxProfile)
-            return (auxProfile)
-        }
-        }    
-        return (aux)*/
     }
-    catch (e) {console.log ("Error db_getLocalProfile")
+    catch (e) {console.log ("Error db_getProfile")
         console.log (e)
     }
-
 }
 
 export async function db_addTicketRating (idTicket, rating)
@@ -110,6 +94,9 @@ export async function db_addUserConfig(id, doc)
 
 export async function db_getTicketChat(idTicket)
 { return (await db_find (db_TICKET_CHAT, {idTicket: idTicket}))}
+
+export async function db_getTicketMsgChat(idTicket, idChat)
+{ return (await db_find (db_TICKET_CHAT, {idTicket: idTicket, id:idChat}))}
 
 export async function db_getTicketLog(idTicket)
 { return (await db_find (db_TICKET_LOG_STATUS, {idTicket:idTicket}))}
@@ -205,9 +192,19 @@ export async function db_getTicketsViewIdGroupBy (idGroupBy)
 export async function db_saveProfile(profile)
 {
     // mm - le cambio al id el + porque da problemas
-   return await db_add (db_PROFILE, "profile_" + profile.phone.replace(/\+/g, ""), profile)
+   return await db_add (db_PROFILE, profile.phone, profile)
 }
 
+export async function db_saveLocal(doc)
+{
+    // mm - le cambio al id el + porque da problemas
+   return await db_add (db_LOCAL, "local", doc)
+}
+export async function db_getLocal()
+{
+   let aux = await db_getAll (db_LOCAL)
+   return aux.length ==0 ? false : aux
+}
 export async function db_setNewUser(id, data) {
     try {
         const result = await db_add(db_USER, id, data);
@@ -242,6 +239,17 @@ export async function db_checkOTP(phone, otp)
         return (false)}
 }
 
+export async function db_syncRemote(db)
+{
+    
+    //debugger
+    //let aux = await getDbByName (db)
+    
+    /*console.log ("voy a actualizar " + db)
+    await aux._syncRemote()
+    */
+}
+
 export async function db_setOTP(phone)
 {
     let otp = String(Math.floor(1000 + Math.random() * 9000))
@@ -263,14 +271,17 @@ export async function db_addTicketLogStatus(data)
 export async function db_openDB (dbName)
 { return getDbByName (dbName)}
 
+export async function db_addDirect (base, id, data)
+{ return db_add (base, id, data, false)
+}
 ///// --------------------------
 
   // mm - obtiene la referencia a una base de datos segun el dbName y si no la encuentra la crea
 
-async function db_add (base, id, data)
+async function db_add (base, id, data, sync = true)
 {
     let dbAux = await getDbByName (base)
-    return (await dbAux.add (data, id))
+    return (await dbAux.add (data, id, sync))
 }
 
 async function getDbByName (dbName)
@@ -286,7 +297,7 @@ async function getDbByName (dbName)
     {
         try{
             console.log(`[database] Creando nueva instancia de DB para: ${db.name}`);
-            let aux = new DB(db.name, { couchUrl: DB_URL, username: DB_USERNAME, password: DB_PASSWORD, isRemote: db.syncSide=="REMOTE" ? true : false, indices: db.index, emitEvent: db.emitEvent})
+            let aux = new DB(db.name, { couchUrl: DB_URL, username: DB_USERNAME, password: DB_PASSWORD, isRemote: db.syncSide=="REMOTE" ? true : false, indices: db.index, emitEvent: db.emitEvent, filterArray: db.filterArray, syncInterval: db.syncInterval })
             await aux.initDB()
             db.created = true
             db.dbLocal = aux

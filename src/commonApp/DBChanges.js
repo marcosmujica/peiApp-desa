@@ -4,12 +4,12 @@
 import {emitEvent } from "./DBEvents";
 import {DB_EVENT } from "./dataTypes"
 import {EVENT_DB_CHANGE } from "./DBEvents"
+import { _idUser } from "./profile"
+import { db_addDirect } from "./database"
 
-const DEFAULT_COUCH_URL = "ws://34.39.168.70:4000"; // ejemplo
-const DEFAULT_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
-const DEFAULT_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
-
-
+const WS_URL = "ws://34.39.168.70:4000"; // ejemplo
+const WS_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
+const WS_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
 
 class DBChanges {
   constructor() {
@@ -29,7 +29,8 @@ class DBChanges {
     this._connecting = true;
     try {
       // keep the alert only for development; it can be removed later
-      this.ws = new WebSocket(DEFAULT_COUCH_URL);
+      console.log (_idUser)
+      this.ws = new WebSocket(WS_URL+ "?idUser="+encodeURIComponent(_idUser));
       this.ws.onopen = () => {
         console.log("Conectado al servidor de cambios");
         this._connecting = false;
@@ -44,6 +45,9 @@ class DBChanges {
           event._rev = data.change.doc._rev
           event.data = data.change.doc.data
           event.source = "REMOTE"
+
+          debugger
+          db_addDirect (event.table, event._id, event.data)
           emitEvent(EVENT_DB_CHANGE, event)
           //emitEvent(EVENT_REMOTE_CHANGE, { ...data.change.doc, table: data.db });
         } catch (err) {

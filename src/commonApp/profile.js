@@ -1,9 +1,11 @@
-import {db_addGroupByTicket, db_getLocalProfile, db_saveProfile, db_createIndexes, db_addUserConfig, db_addGroupUsers} from "./database"
+import {db_addGroupByTicket, db_getLocal, db_getProfile, db_saveProfile, db_createIndexes, db_addUserConfig, db_addGroupUsers, db_PROFILE} from "./database"
 import {GROUP_BY_TICKETS} from "./dataTypes"
 import { getUId } from "./functions"
 import {USER_PREFIX_GROUP, MAIN_GROUP_BY_COLLECT, MAIN_GROUP_BY_PAY, MAIN_GROUP_BY_INVESTMENT} from "./constants"
 
-let _profile = {}
+export let _profile = {}
+export let _idUser = ""
+export let _local = {}
 
 export function isMe(idUser)
 { return idUser == _profile.idUser ? true : false }
@@ -11,7 +13,13 @@ export function isMe(idUser)
 export async function initProfile ()
 {
     try{
-        _profile = await db_getLocalProfile() 
+        _local = await db_getLocal() 
+        if (!_local)
+        {return false}
+        else { 
+            _idUser = _local[0].idUser
+            _profile = await db_getProfile() 
+        }
     }
     catch (e) { console.log (e)}
     return (_profile)
@@ -24,6 +32,7 @@ export async function setProfile (doc)
 {
 
     _profile = doc
+    _idUser = doc.idUser
     return (await saveProfile())
 }
 export function isLogged ()
@@ -49,7 +58,7 @@ export async function firstLogging()
 export async function setInitGroupBy()
 {
 
-    let profile = await db_getLocalProfile ()
+    let profile = await db_getProfile ()
 
     ///// mm - agrego los grupos creados automaticamente
     let idGroup = USER_PREFIX_GROUP + getUId() // mm - defino el grupo principal pero no lo creo, solo lo uso para agregarle el subgrupo

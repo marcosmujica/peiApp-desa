@@ -3,9 +3,8 @@ import { Dimensions, View, Text, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, tStyles } from '../common/theme';
 import  "../commonApp/global"
-import {getProfile, initProfile, isLogged} from '../commonApp/profile';
-
-import { db_userAccess } from '../commonApp/database';
+import {getProfile, initLocal, initProfile, isLogged} from '../commonApp/profile';
+import { db_getLocal, db_userAccess } from '../commonApp/database';
 import Loading from "../components/Loading";
 
 const slides = [
@@ -54,6 +53,7 @@ const Welcome = ({ navigation }) => {
 
     const checkLogin = async () =>
   {
+    
     if (!await initProfile())
     {
       try{navigation.navigate('PreLogin')}catch(e){console.log(e)}

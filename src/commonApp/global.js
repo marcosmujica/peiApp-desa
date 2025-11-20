@@ -1,4 +1,3 @@
-import { LOCAL_PROFILE } from '../commonApp/dataTypes';
 
 let _HomePage = "";
 

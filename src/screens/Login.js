@@ -11,7 +11,7 @@ import { getStyles } from "../styles/home";
 import { setProfile, getProfile } from '../commonApp/profile';
 import { getPhoneCodeByCountryId, getCountryCodeByIP } from '../commonApp/functions';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
-import { LOCAL_PROFILE } from '../commonApp/dataTypes';
+import { PROFILE } from '../commonApp/dataTypes';
 
 const Login = ({ navigation }) => {
 
@@ -66,7 +66,7 @@ const Login = ({ navigation }) => {
                     }
                     setLoading (true)
                     try {
-                        let aux = new LOCAL_PROFILE()
+                        let aux = new PROFILE()
 
                         aux.phonePrefix  = country.dial_code
                         aux.countryCode = country.code

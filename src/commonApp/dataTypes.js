@@ -279,12 +279,12 @@ export class USER_ACCESS {
 
 export class LOCAL{
   constructor (){
-    this.phone = ""
+    this.idUser = ""
     Object.seal(this)
   }
 }
 
-export class LOCAL_PROFILE {
+export class PROFILE {
   constructor() {
     this.idUser = ""
     this.externalId = getBigUId(); // mm - id unico que se utiliza para referenciar al usuario desde afuera

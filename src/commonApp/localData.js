@@ -12,7 +12,8 @@ import {
   db_getAllGroupsBy, 
   db_getGroupsByByIdGroup,
   db_openDB,
-  db_TICKET_VIEW
+  db_TICKET_VIEW,
+  db_syncRemote
 } from "../commonApp/database";
 import  {TICKET_LIST_ITEM,  } from "./dataTypes"
 import  {LIST_VIEW_CHANGE_SEEN,LIST_VIEW_CHANGE_LOG_STATUS,LIST_VIEW_CHANGE_CHAT,LIST_VIEW_CHANGE_INFO,LIST_VIEW_CHANGE_TICKET , TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS,TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "./constants"
@@ -289,8 +290,10 @@ class LocalData {
                 this.isReady = true;
                 
                 // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
-                this._dbChangeListener = onEvent(EVENT_DB_CHANGE, (payload) => {
-                    this._handleDBChange(payload);
+                this._dbChangeListener = onEvent(EVENT_DB_CHANGE, async (payload) =>  {
+                    debugger
+                    //await db_syncRemote (payload.table)
+                    await this._handleDBChange(payload);
                 })
             } catch (e) {
                 console.log("❌ Error en initData:", e);
@@ -307,7 +310,6 @@ class LocalData {
         console.log("LocalData: DB Change detected", payload);
         
         if (!payload || !payload.table) return;
-
         const { table, _id, data } = payload;
 
         // Actualizar datos locales según el tipo de cambio
@@ -325,6 +327,7 @@ class LocalData {
                 this._updateTicketChats(payload, data);
                 break;
             case 'ticket_log_status':
+                debugger
                 await this._updateTicketLogs(data);
                 break;
             case 'ticket_info':

@@ -30,9 +30,10 @@ import { openDB } from 'idb';
 import {EVENT_DB_CHANGE, emitEvent } from "./DBEvents";
 import { DB_EVENT } from './dataTypes';
 import { getUId } from './functions';
+import { _idUser } from "./profile"
 
 // ==================== CONFIGURACIÓN ====================
-const SYNC_INTERVAL = 30000; // 30 segundos
+const SYNC_INTERVAL = 60000; // 60 segundos
 const FETCH_TIMEOUT = 10000; // 10 segundos
 
 // ==================== CLASE PRINCIPAL ====================
@@ -57,6 +58,7 @@ export class DB {
     this.couchUrl = options.couchUrl ;
     this.username = options.username ;
     this.password = options.password ;
+    this.filterArray = options.filterArray || [] // mm - array de views con valor "field" y "value"
     this.userId = options.userId || '';
     this.indices = options.indices || [];
     this.syncInterval = options.syncInterval || SYNC_INTERVAL;
@@ -100,6 +102,7 @@ export class DB {
       
       // Si es remota, iniciar sincronización
       if (this.isRemote) {
+        console.log (this.dbName + " SYNC REMOTO")
         await this._startSync();
       }
     } catch (error) {
@@ -192,7 +195,7 @@ export class DB {
         );
       `);
 /*
-      // Crear índices solicitados
+      // Crear índices soliºcitados
       for (const index of this.indices) {
         await this.db.runAsync(`
           CREATE INDEX IF NOT EXISTS idx_${index} 
@@ -219,13 +222,59 @@ export class DB {
 
   // ==================== MÉTODOS CRUD ====================
 
+  async put2(id, doc) {
+    await this._ensureInitialized();
+    
+    try {
+      const docId = id || this._generateId();
+      const existingDoc = await this._getLocal(docId);
+      
+      // Agregar/actualizar timestamp updatedAt automáticamente
+      const dataWithTimestamp = {
+        ...doc,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Si es un documento nuevo, agregar también createdAt
+      if (!existingDoc && !doc.createdAt) {
+        dataWithTimestamp.createdAt = dataWithTimestamp.updatedAt;
+      }
+      
+      // Estructura: campos de control en root, datos del usuario en 'data'
+      const newDoc = {
+        _id: docId,
+        _rev: existingDoc ? this._incrementRev(existingDoc._rev) : '1-' + this._generateId(),
+        _deleted: false,
+        syncStatus: 'pending',
+        data: dataWithTimestamp // Los datos del usuario van en el campo 'data' con timestamps
+      };
+      
+      // Guardar localmente
+      await this._putLocal(newDoc);
+      
+      //console.log(`[DB:${this.dbName}] ✓ Documento ${docId} guardado localmente (updatedAt: ${dataWithTimestamp.updatedAt})`);
+      
+      /*// Si es remoto, sincronizar inmediatamente
+      if (this.isRemote) {
+        
+        this._syncDocumentToRemote(newDoc).catch(err => {
+          //console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
+        });
+      }*/
+      
+      return docId;
+    } catch (error) {
+      console.log(`[DB:${this.dbName}] Error en put:`, error);
+      throw error;
+    }
+  }
   /**
    * Crea o actualiza un documento
    * @param {string} id - ID del documento
    * @param {Object} doc - Documento a guardar (se guardará en el campo 'data')
    * @returns {Promise<Object>} Documento guardado con estructura { _id, _rev, _deleted, syncStatus, data }
    */
-  async put(id, doc) {
+  async put(id, doc, sync=true) {
     await this._ensureInitialized();
     
     try {
@@ -258,7 +307,8 @@ export class DB {
       //console.log(`[DB:${this.dbName}] ✓ Documento ${docId} guardado localmente (updatedAt: ${dataWithTimestamp.updatedAt})`);
       
       // Si es remoto, sincronizar inmediatamente
-      if (this.isRemote) {
+      if (this.isRemote && sync) {
+        
         this._syncDocumentToRemote(newDoc).catch(err => {
           //console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
         });
@@ -280,7 +330,6 @@ export class DB {
    */
   async update(id, data, rev) {
 
-    console.log ("entro0")
     await this._ensureInitialized();
     
     try {
@@ -321,7 +370,7 @@ export class DB {
       // Si es remoto, sincronizar inmediatamente
       if (this.isRemote) {
         this._syncDocumentToRemote(updatedDoc).catch(err => {
-          console.error(`[DB:${this.dbName}] Error sincronizando documento:`, err);
+          console.log(`[DB:${this.dbName}] Error sincronizando documento:`, err);
         });
       }
       
@@ -452,9 +501,9 @@ export class DB {
   // ==================== MÉTODOS LOCALES ====================
 
   // mm - por compatibilidad con lo que ya tengo
-  async add (doc, id)
+  async add (doc, id, sync=true)
   {
-    return (await this.put (id,doc))
+    return (await this.put (id,doc, sync))
   }
   /**
    * Guarda un documento en la base de datos local
@@ -510,17 +559,21 @@ export class DB {
             dataJson
           ]
         );
-        if (this.emitEvent && shouldEmitEvent)
-        {
-          let event = new DB_EVENT ()
-          event.table = this.dbName
-          event._id = doc._id
-          event._rev = doc._rev
-          event.data = doc.data
-          event.source = "LOCAL"
-          emitEvent(EVENT_DB_CHANGE, event)
-        }
+        
         //console.log(`[_putLocal] ✓ Documento ${doc._id} guardado correctamente`);
+      }
+      if (this.emitEvent && shouldEmitEvent)
+      {
+        // mm - genero evento de actualizacion
+        let event = new DB_EVENT ()
+        event.table = this.dbName
+        event._id = doc._id
+        event._rev = doc._rev
+        event.data = doc.data
+        event.source = "LOCAL"
+        console.log ("se emite evento en " + this.dbName)
+        console.log (event)
+        emitEvent(EVENT_DB_CHANGE, event)
       }
     }
     catch (e){
@@ -682,14 +735,33 @@ export class DB {
       // Construir URL con filtro por usuario si está configurado
       let url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${this.lastSeq}`;
       
-      if (this.userId) {
-        url += `&filter=_selector&selector=${encodeURIComponent(JSON.stringify({userId: this.userId}))}`;
-      }
-      
-      const response = await this._fetchWithTimeout(url, {
+      let fetchOptions = {
         method: 'GET',
         headers: this._getAuthHeaders()
-      });
+      };
+
+      if (Object.keys(this.filterArray).length > 0) {
+        // mm - cambio si el valor del campo es "" entonces remplazo por el userid
+        const processedFilters = {};
+        for (const [name, value] of Object.entries(this.filterArray)) {
+          processedFilters["data." + name] = value === "" ? _idUser : value;
+        }
+        
+        // Cambiar a POST y enviar el selector en el body
+        url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${this.lastSeq}&filter=_selector`;
+
+        // mmm - genera post o get segun si llevar selector o no
+        fetchOptions = {
+          method: 'POST',
+          headers: {
+            ...this._getAuthHeaders(),
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ selector: processedFilters })
+        };
+        console.log('Filtros aplicados:', processedFilters);
+      }
+      const response = await this._fetchWithTimeout(url, fetchOptions);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -698,7 +770,8 @@ export class DB {
       const data = await response.json();
       
       //console.log(`[DB:${this.dbName}] Cambios recibidos: ${data.results.length}`);
-      
+      console.log ("recibido remoto " + this.dbName)
+      console.log (data.results)
       // Procesar cada cambio
       for (const change of data.results) {
         await this._applyRemoteChange(change);
@@ -729,7 +802,7 @@ export class DB {
       if (!localDoc) {
         // No existe localmente, aplicar el cambio remoto directamente
         remoteDoc.syncStatus = 'synced';
-        await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+        await this._putLocal(remoteDoc, true); // mm - emito evento porque viene del servidor
         //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto nuevo: ${remoteDoc._id}`);
       } else {
         // Existe localmente - resolver conflicto por updatedAt
@@ -739,7 +812,7 @@ export class DB {
         if (remoteUpdatedAt >= localUpdatedAt) {
           // La versión remota es más reciente o igual - aplicar
           remoteDoc.syncStatus = 'synced';
-          await this._putLocal(remoteDoc, false); // No emitir evento - viene del servidor
+          await this._putLocal(remoteDoc, true); // mm - emito evento porque viene del servidor
           //console.log(`[DB:${this.dbName}] ✓ Aplicado cambio remoto más reciente: ${remoteDoc._id} (${new Date(remoteUpdatedAt).toISOString()} >= ${new Date(localUpdatedAt).toISOString()})`);
         } else {
           // La versión local es más reciente - mantener local y marcar para sincronizar
@@ -750,13 +823,13 @@ export class DB {
           // Programar sincronización inmediata para enviar la versión local al servidor
           if (this.isRemote) {
             this._syncDocumentToRemote(localDoc).catch(err => {
-              console.error(`[DB:${this.dbName}] Error sincronizando versión local más reciente:`, err);
+              console.log(`[DB:${this.dbName}] Error sincronizando versión local más reciente:`, err);
             });
           }
         }
       }
     } catch (error) {
-      console.error(`[DB:${this.dbName}] Error aplicando cambio remoto:`, error);
+      console.log(`[DB:${this.dbName}] Error aplicando cambio remoto:`, error);
     }
   }
 

@@ -199,10 +199,7 @@ const NewTicket = ({ navigation, route }) => {
 
       // mm - si no se creo la asociacion de tickets lo creo
       for (const item of groupUsersList) {
-        let idToUser = item.contact;
-        // mm - para no crearle un ticket al creador del ticket
-        //if (idToUser != profile.idUser) {
-          // mm - necesito volver a crear el ticket cada vez para que no de error
+          let idToUser = item.contact;
           
           let idTicket = getUId()
           // mm - si el ticket es de pago entonces creo un ticket de pago para mi y uno de cobro para el otro, o lo contrario si es de cobro
@@ -258,7 +255,7 @@ const NewTicket = ({ navigation, route }) => {
           data.idTicket = idTicket;
           data.idStatus = isTicketOpen ? TICKET_DETAIL_DEFAULT_STATUS : "PAYED"; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
           data.idUserFrom = profile.idUser;
-          data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
+          data.idUserTo = isMe (idToUser) ? "" : idToUser; // mm - guardo para poder filtrar en los eventos del log
           data.data.amount = ticketAmount;
           data.message = isTicketOpen
             ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
@@ -271,7 +268,7 @@ const NewTicket = ({ navigation, route }) => {
           data.idTicket = idTicket;
           data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
           data.idUserFrom = profile.idUser;
-          data.idUserTo = isMe (idToUser) ? "" : profile.idUser; // mm - guardo para poder filtrar en los eventos del log
+          data.idUserTo = isMe (idToUser) ? "" : idToUser; // mm - guardo para poder filtrar en los eventos del log
           data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
           data.data.dueDate = dueDate;
 

@@ -24,7 +24,7 @@ import {
   db_TICKET_CHAT,
 } from "../commonApp/database";
 import ImgAvatar from "../components/ImgAvatar";
-import { getProfile, isMe } from "../commonApp/profile";
+import { getProfile, _idUser} from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import {recoveryAllContacts} from '../commonApp/contacts';
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
@@ -121,6 +121,7 @@ const Home = ({ navigation }) => {
   async function checkDB() {
 
     // mm -- inicializo base de datos principales para que se sincronicen
+    console.log (_idUser)
     db_initListener();
 
     db_openDB (db_TICKET)

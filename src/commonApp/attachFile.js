@@ -151,7 +151,6 @@ async function handleFile(choice) {
       const res = await ImagePicker.launchCameraAsync({ quality: 0.5, allowsEditing: false });
       asset = normalizeImageResult(res);
     } else if (requested === 'file') {
-      debugger
       const res = await DocumentPicker.getDocumentAsync({ type: ['application/pdf','text/plain'] });
   if (!res) return;
   if (res.canceled ) return;

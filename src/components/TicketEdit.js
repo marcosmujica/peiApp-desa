@@ -83,7 +83,6 @@ const TicketEdit = ({ idTicket }) => {
 
   async function attachDocument() {
     try {
-      debugger
       setDocAttachmentFilename("");
       setDocAttachment({});
       
@@ -95,7 +94,6 @@ const TicketEdit = ({ idTicket }) => {
 
       setLoading(true);
       let uploadedFile = await getFileAndUpload(profile.idUser, false, res.type);
-      debugger
       setLoading(false);
       if (!uploadedFile) return;
       setDocAttachment(uploadedFile);

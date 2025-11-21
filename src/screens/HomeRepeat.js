@@ -60,7 +60,6 @@ const HomeRepeat = ({ navigation }) => {
 
       setRefreshing(true);
 
-      debugger
       let repeatList = await db_getAllTicketRepeat() 
       setDataList ([...repeatList]);
       setDataListSearch ([...repeatList])

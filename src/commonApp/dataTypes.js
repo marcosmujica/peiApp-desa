@@ -344,6 +344,9 @@ export class TICKET_LIST_ITEM { // mm - type para los mensajes que se muestran e
     this.deleted = false
     this.dueDate = new Date()
     this.rating = 0
+    this.expensesCategory = ""
+    this.useType = "" // mm - si el ticket es personal, para el negocio o se comparte
+    this.purchaseType = ""
 
     Object.seal(this);
   }

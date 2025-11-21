@@ -42,7 +42,6 @@ const OTPScreen = ({ navigation, route }) => {
         let aux = await db_checkOTP(profile.phone, otp);
         
         if (aux) {
-          debugger
           // mm - creo el id en el local
           let local = new LOCAL()
           local.idUser = profile.phone

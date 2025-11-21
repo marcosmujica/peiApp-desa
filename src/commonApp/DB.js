@@ -71,7 +71,7 @@ export class DB {
     this.initialized = false;
     this.syncing = false;
     this.syncTimer = null;
-    this.lastSeq = 0;
+    this.lastSeq = '0';
     
     // Inicializar automáticamente
     
@@ -730,10 +730,12 @@ export class DB {
     this.syncing = true;
     
     try {
-      //console.log(`[DB:${this.dbName}] → Sincronizando desde remoto (seq: ${this.lastSeq})`);
+      // Validar y sanitizar lastSeq
+      const safeLastSeq = this.lastSeq && String(this.lastSeq).trim() !== '' ? String(this.lastSeq) : '0';
+      console.log(`[DB:${this.dbName}] → Sincronizando desde remoto (seq: ${safeLastSeq})`);
       
       // Construir URL con filtro por usuario si está configurado
-      let url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${this.lastSeq}`;
+      let url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${safeLastSeq}`;
       
       let fetchOptions = {
         method: 'GET',
@@ -741,6 +743,13 @@ export class DB {
       };
 
       if (Object.keys(this.filterArray).length > 0) {
+        // Verificar que _idUser esté definido
+        if (!_idUser) {
+          console.warn(`[DB:${this.dbName}] _idUser no está definido, saltando sincronización con filtros`);
+          this.syncing = false;
+          return;
+        }
+        
         // mm - cambio si el valor del campo es "" entonces remplazo por el userid
         const processedFilters = {};
         for (const [name, value] of Object.entries(this.filterArray)) {
@@ -748,7 +757,7 @@ export class DB {
         }
         
         // Cambiar a POST y enviar el selector en el body
-        url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${this.lastSeq}&filter=_selector`;
+        url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${safeLastSeq}&filter=_selector`;
 
         // mmm - genera post o get segun si llevar selector o no
         fetchOptions = {
@@ -759,12 +768,15 @@ export class DB {
           },
           body: JSON.stringify({ selector: processedFilters })
         };
-        console.log('Filtros aplicados:', processedFilters);
+        console.log(`[DB:${this.dbName}] Filtros aplicados:`, processedFilters);
+        console.log(`[DB:${this.dbName}] Body enviado:`, fetchOptions.body);
       }
       const response = await this._fetchWithTimeout(url, fetchOptions);
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[DB:${this.dbName}] Error HTTP ${response.status}:`, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
       
       const data = await response.json();
@@ -785,6 +797,7 @@ export class DB {
       //console.log(`[DB:${this.dbName}] ✓ Sincronización desde remoto completada`);
     } catch (error) {
       console.log(`[DB:${this.dbName}] Error sincronizando desde remoto:`, error);
+      console.log (error)
     } finally {
       this.syncing = false;
     }
@@ -987,18 +1000,18 @@ export class DB {
     try {
       if (this.isWeb) {
         const metadata = await this.db.get('metadata', 'lastSeq');
-        this.lastSeq = metadata ? metadata.value : 0;
+        this.lastSeq = metadata ? String(metadata.value) : '0';
       } else {
         const result = await this.db.getAllAsync(
           'SELECT value FROM metadata WHERE key = ?',
           ['lastSeq']
         );
-        this.lastSeq = result.length > 0 ? parseInt(result[0].value) : 0;
+        this.lastSeq = result.length > 0 ? String(result[0].value) : '0';
       }
-      //console.log(`[DB:${this.dbName}] Último seq cargado: ${this.lastSeq}`);
+      console.log(`[DB:${this.dbName}] Último seq cargado: ${this.lastSeq}`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error cargando lastSeq:`, error);
-      this.lastSeq = 0;
+      this.lastSeq = '0';
     }
   }
 
@@ -1012,11 +1025,12 @@ export class DB {
       if (this.isWeb) {
         await this.db.put('metadata', { key: 'lastSeq', value: seq });
       } else {
-        await this.db.execAsync(
+        await this.db.runAsync(
           'INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)',
           ['lastSeq', seq.toString()]
         );
       }
+      console.log(`[DB:${this.dbName}] ✓ lastSeq guardado: ${seq}`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error guardando lastSeq:`, error);
     }

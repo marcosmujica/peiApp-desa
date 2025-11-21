@@ -35,7 +35,7 @@ const lightStyles = StyleSheet.create({
   },
   topBarSecText: {
     ...fonts.regular,
-    fontSize: 15,
+    fontSize: 10,
     marginTop: 1,
     color: colors.dark,
   },

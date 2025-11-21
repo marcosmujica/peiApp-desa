@@ -4,6 +4,8 @@ import dbInstance from './dbInstance';
 import {deepObjectMerge} from './functions';
 import dbChanges from './DBChanges';
 import {getProfile} from "../commonApp/profile"
+import { EVENT_DB_CHANGE } from "./DBEvents";
+
 
 export const db_OTP = "otp"
 export const db_TICKET = "ticket"
@@ -162,8 +164,8 @@ export async function db_updateTicketInfo (idTicket, idUser, type, data)
         let aux = await db_find (db_TICKET_INFO, {idTicket: idTicket, idUser: idUser, type: type})
         if (!aux || aux.length == 0) return false
         const existing = aux[0]
-        existing.data.info = deepObjectMerge (existing.data.info, data)
-        return await db_updateDoc (db_TICKET_INFO, existing.id,existing.data)
+        existing.info = deepObjectMerge (existing.info, data)
+        await db_updateDoc (db_TICKET_INFO, existing.id,existing)
     }
     catch (e) { console.log (e);console.log ("Error db_updateTicketInfo: " + JSON.stringify(e)); return false }
 }
@@ -237,17 +239,6 @@ export async function db_checkOTP(phone, otp)
     catch (e) {
         console.log (e)
         return (false)}
-}
-
-export async function db_syncRemote(db)
-{
-    
-    //debugger
-    //let aux = await getDbByName (db)
-    
-    /*console.log ("voy a actualizar " + db)
-    await aux._syncRemote()
-    */
 }
 
 export async function db_setOTP(phone)
@@ -334,22 +325,6 @@ async function db_updateDoc (dbName, id, docNew)
     }
     catch (e) {
         console.log (e);console.log ("Error update: " + JSON.stringify(e))}
-}
-
-async function db_updateDoc2 (dbName, id, docNew)
-{
-    try{
-
-        let db= await getDbByName (dbName)
-        let doc = await db.getWithHeader(id)
-        
-        if (doc==false) { return false}
-        // mm - actualizo el campo enviado
-        const existingData = (doc && doc.data) ? { ...doc.data } : {};
-        const merged = { ...existingData, ...docNew };
-        return await db.update(id, merged);
-    }
-    catch (e) {console.log ("Error update: " + JSON.stringify(e))}
 }
 
 async function db_getAll (base){

@@ -217,12 +217,6 @@ const ChatDetails = ({ navigation, route }) => {
         }
 
         let aux = await db_getTicketMsgChat (doc.data.idTicket, doc.data.id)
-debugger
-        // mm - si ya hay un mensaje con el mismo id lo descarto
-        /*if (aux.length>0)
-        {debugger
-          return
-        }*/
         // mm - agregar el mensaje si no existe ya
         setChatData((prev) => {
           // Verificar si ya existe en el array actual por id

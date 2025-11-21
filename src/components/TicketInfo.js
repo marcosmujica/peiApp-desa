@@ -115,6 +115,7 @@ const TicketInfo = ({ idTicket }) => {
 
   async function setUseTypeOption(option) {
     let aux = await db_updateTicketInfo(idTicket, profile.idUser, TICKET_INFO_TYPE_USE_TYPE, { useType: option });
+    
     setUseType(option);
   }
 

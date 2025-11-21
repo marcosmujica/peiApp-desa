@@ -487,15 +487,22 @@ const MoneyAgenda = ({ navigation, route }) => {
             </View>
           }
           showsVerticalScrollIndicator={false}
-          sections={groupedData.map(group => ({
-            title: group.date,
-            totals: group.totals,
-            cumulativeTotals: group.cumulativeTotals,
-            data: group.tickets
-          }))}
+          sections={groupedData.map(group => {
+            const today = new Date();
+            const dateToCheck = new Date(group.date);
+            const isToday = formatDateToYYYYMMDD(today) === formatDateToYYYYMMDD(dateToCheck);
+            
+            return {
+              title: group.date,
+              totals: group.totals,
+              cumulativeTotals: group.cumulativeTotals,
+              data: group.tickets,
+              isToday: isToday
+            };
+          })}
           keyExtractor={(item, index) => item.idTicket || index.toString()}
-          renderItem={({ item }) => {
-            return <TicketItem item={item} idProfile={profile.idUser} idUser={profile.idUser} onClick={goToTicket} />;
+          renderItem={({ item, section }) => {
+            return <TicketItem item={item} idProfile={profile.idUser} idUser={profile.idUser} onClick={goToTicket} isToday={section.isToday} />;
           }}
           renderSectionHeader={({ section }) => (
             <DateHeader 
@@ -514,12 +521,15 @@ const MoneyAgenda = ({ navigation, route }) => {
   );
 };
 
-const TicketItem = ({ item, idUser, onClick, idProfile }) => {
+const TicketItem = ({ item, idUser, onClick, idProfile, isToday }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   
   return (
-    <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
+    <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={[
+      getStyles(colorScheme).chatContainer,
+      isToday && {borderTopColor: colors.gray50, borderTopWidth:1} /*{ backgroundColor: colors.gray75, paddingHorizontal:10, borderRadius:25, margin:5 }*/
+    ]}>
       <TouchableOpacity>
         <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={45} detail={item.idUserTo == "" ? false : true}/>
       </TouchableOpacity>
@@ -579,13 +589,21 @@ const TicketItem = ({ item, idUser, onClick, idProfile }) => {
 
 const DateHeader = ({ date, totals, cumulativeTotals }) => {
   const colorScheme = useColorScheme();
+  
+  // Verificar si la fecha es hoy
+  const today = new Date();
+  const dateToCheck = new Date(date);
+  const isToday = formatDateToYYYYMMDD(today) === formatDateToYYYYMMDD(dateToCheck);
 
   return (
-    <View style={{ 
-      marginVertical: 10, 
-      marginHorizontal: 5,
-      alignItems: 'center'
-    }}>
+    <View style={[
+      { 
+        marginVertical: 10, 
+        marginHorizontal: 5,
+        alignItems: 'center'
+      },
+      isToday 
+    ]}>
       <Hr />
       {/* Badge centrado con la fecha larga */}
       <View style={{padding:10}}><View style={getStyles(colorScheme).titleBadge}>

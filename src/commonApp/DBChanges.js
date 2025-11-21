@@ -45,8 +45,6 @@ class DBChanges {
           event._rev = data.change.doc._rev
           event.data = data.change.doc.data
           event.source = "REMOTE"
-
-          debugger
           db_addDirect (event.table, event._id, event.data)
           emitEvent(EVENT_DB_CHANGE, event)
           //emitEvent(EVENT_REMOTE_CHANGE, { ...data.change.doc, table: data.db });

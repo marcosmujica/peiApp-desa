@@ -122,21 +122,22 @@ export const REPEAT_QUADRIMONTHLY = "QUADRIMONTHLY"
 export const REPEAT_ANNUALY= "ANNUALY"
 
 export const EXPENSES_CATEGORY = [
-  {"code": "VI", "name": "Vivienda", "purchaseType": "needed"},
-  {"code": "AL", "name": "Alimentación", "purchaseType": "needed"},
-  {"code": "TR", "name": "Transporte", "purchaseType": "needed"},
-  {"code": "SA", "name": "Salud", "purchaseType": "needed"},
-  {"code": "ED", "name": "Educación", "purchaseType": "needed"},
-  {"code": "EN", "name": "Entretenimiento", "purchaseType": "optional"},
-  {"code": "CU", "name": "Cuidado Personal", "purchaseType": "optional"},
-  {"code": "SU", "name": "Suscripciones", "purchaseType": "optional"},
-  {"code": "AH", "name": "Ahorros e inversiones", "purchaseType": "needed"},
-  {"code": "MA", "name": "Mascotas", "purchaseType": "optional"},
-  {"code": "VI", "name": "Viajes y Vacaciones", "purchaseType": "optional"},
-  {"code": "DE", "name": "Intereses / Recargos ", "purchaseType": "needed"},
-  {"code": "DE", "name": "Gastos del Banco / Tarjetas / Billetera", "purchaseType": "needed"},
-  {"code": "OT", "name": "Otros / Imprevistos", "purchaseType": "optional"}
-].sort ((a,b) => a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1);
+  {"code": "AH", "name": "Ahorro o inversión", "purchaseType": "needed", iconName: "piggy-bank"},
+  {"code": "AL", "name": "Alimentación", "purchaseType": "needed", iconName: "food"},
+  {"code": "CU", "name": "Cuidado Personal", "purchaseType": "optional", iconName: "face-man"},
+  {"code": "ED", "name": "Educación", "purchaseType": "needed", iconName: "book-open-page-variant"},
+  {"code": "EN", "name": "Entretenimiento", "purchaseType": "optional", iconName: "ticket-outline"},
+  {"code": "DE", "name": "Gastos del Banco / Tarjetas / Billetera", "purchaseType": "needed", iconName: "credit-card"},
+  {"code": "DE", "name": "Intereses / Recargos ", "purchaseType": "needed", iconName: "credit-card"},
+  {"code": "MA", "name": "Mascotas", "purchaseType": "optional", iconName: "dog-side"},
+  {"code": "SA", "name": "Salud", "purchaseType": "needed", iconName: "hospital-box-outline"},
+  {"code": "SU", "name": "Suscripciones", "purchaseType": "optional", iconName: "movie-open-outline"},
+  {"code": "TR", "name": "Transporte", "purchaseType": "needed", iconName: "bus"},
+  {"code": "VA", "name": "Viajes y Vacaciones", "purchaseType": "optional", iconName: "sail-boat"},
+  {"code": "VI", "name": "Vivienda", "purchaseType": "needed", iconName: "greenhouse"},
+  {"code": "OT", "name": "Otros / Imprevistos", "purchaseType": "optional", iconName: "segment"}
+]
+// mm - no lo ordeno para que me quede otros al final
 
 export const PAY_METHOD = [
   {id:0, "code": "CREDIT_CARD", "name": "Tarjeta de Crédito"},

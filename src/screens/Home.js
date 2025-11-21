@@ -28,7 +28,7 @@ import { getProfile, _idUser} from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import {recoveryAllContacts} from '../commonApp/contacts';
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
-import { TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
+import { EXPENSES_CATEGORY, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "../commonApp/constants";
 import localData, { EVENT_LOCAL_LISTVIEW_UPDATED } from '../commonApp/localData';
 import moment from "moment";
 import "moment/locale/es";
@@ -276,11 +276,21 @@ const TicketItem = ({ item, idUser, onClick, idProfile }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   
+  let icon=""
+  if (item.expensesCategory && item.expensesCategory != "")
+    {let aux = EXPENSES_CATEGORY.find ((aux)=> aux.code == item.expensesCategory)
+      icon = aux.iconName
+    }
+  
   return (
     <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
+      <View >
         <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={50} detail={item.idUserTo == "" ? false : true}/>
+        {icon!="" && <MaterialCommunityIcons name={icon} size={20} style={{position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.gray50, borderRadius: 25, padding:5, color:colors.white}}/>}
+      </View>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}
+        
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <Text style={[
             getStyles(colorScheme).listMainText, 

@@ -15,8 +15,8 @@ import {
   db_TICKET_VIEW,
   db_syncRemote
 } from "../commonApp/database";
-import  {TICKET_LIST_ITEM,  } from "./dataTypes"
-import  {LIST_VIEW_CHANGE_SEEN,LIST_VIEW_CHANGE_LOG_STATUS,LIST_VIEW_CHANGE_CHAT,LIST_VIEW_CHANGE_INFO,LIST_VIEW_CHANGE_TICKET , TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS,TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "./constants"
+import  {TICKET_INFO_USE_TYPE, TICKET_LIST_ITEM,  } from "./dataTypes"
+import  {TICKET_INFO_TYPE_PAY, TICKET_INFO_TYPE_USE_TYPE, LIST_VIEW_CHANGE_SEEN,LIST_VIEW_CHANGE_LOG_STATUS,LIST_VIEW_CHANGE_CHAT,LIST_VIEW_CHANGE_INFO,LIST_VIEW_CHANGE_TICKET , TICKET_DETAIL_CLOSED_STATUS, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS,TICKET_DETAIL_STATUS, TICKET_TYPE_COLLECT, TICKET_TYPE_PAY } from "./constants"
 import { getProfile, isMe } from "./profile";
 import {getUniqueValues } from "./functions";
 import {getContactName} from "./contacts";
@@ -291,8 +291,8 @@ class LocalData {
                 
                 // mm - hay que iniciarlo para que no de errores de recibir eventos sin antes haber iniciado
                 this._dbChangeListener = onEvent(EVENT_DB_CHANGE, async (payload) =>  {
-                    debugger
-                    //await db_syncRemote (payload.table)
+                    console.log ("recibo payload EVENT_DB_CHANGE")
+                    console.log (payload.table)
                     await this._handleDBChange(payload);
                 })
             } catch (e) {
@@ -327,7 +327,6 @@ class LocalData {
                 this._updateTicketChats(payload, data);
                 break;
             case 'ticket_log_status':
-                debugger
                 await this._updateTicketLogs(data);
                 break;
             case 'ticket_info':
@@ -486,37 +485,22 @@ class LocalData {
     }
     async _updateTicketInfo(data) {
 
-        let aux = await db_getTicket (data.idTicket)
-        if (!aux ) return
         const index = this.ticketViews.findIndex(l => l.idTicket === data.idTicket);
-        this.lastUpdate = new Date().toISOString();
-
         // mm - si no lo encuentro salgo
-        if (index == -1) return
+        if (index==-1) return false
         
-        this.ticketViews[index].status = data.idStatus;
-        let aux2 = TICKET_DETAIL_STATUS.find((aux) => aux.code == data.idStatus);
-        this.ticketViews[index].statusText = aux2.name;
-
-        // mm - le cambio la fecha de vencimiento
-        if (data.idStatus == TICKET_DETAIL_CHANGE_DUE_DATE_STATUS) {
-            this.ticketViews[index].dueDate = data.data.dueDate;
+        if (data.type == TICKET_INFO_TYPE_PAY) {
+            this.ticketViews[index].expensesCategory = data.info.expensesCategory
+            this.ticketViews[index].purchaseType = data.info.type
+            await db_updateTicketListItem(data.idTicket, this.ticketViews[index]);
+            this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, this.ticketViews[index]);        
         }
 
-        if (data.idStatus == TICKET_DETAIL_CLOSED_STATUS) {
-            this.ticketViews[index].isOpen = false
+        if (data.type == TICKET_INFO_TYPE_USE_TYPE) {
+             this.ticketViews[index].useType = data.info.useType
+             await db_updateTicketListItem(data.idTicket, this.ticketViews[index]);
+             this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, this.ticketViews[index]);
         }
-
-        this.ticketViews[index].ts = new Date();
-        
-        // mm - si lo envie yo no lo marco
-        this.ticketViews[index].seen = isMe (data.idUserFrom)
-        this.ticketViews[index].changeSource = LIST_VIEW_CHANGE_INFO
-
-        // mm - actualizar solo el item específico en el estado
-        await db_updateTicketListItem(data.idTicket, this.ticketViews[index]);
-
-        this.emitEvent(EVENT_LOCAL_LISTVIEW_UPDATED, data);
     }
     
     // Métodos públicos para emitir eventos propios

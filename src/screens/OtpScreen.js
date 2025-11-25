@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,31 +17,69 @@ import Loading from "../components/Loading";
 import { useState } from "react";
 import { getStyles } from "../styles/home";
 import { LOCAL } from "../commonApp/dataTypes";
+import { URL_OTP_REQUEST, URL_OTP_VALIDATE } from "../commonApp/constants.js";
 
 const OTPScreen = ({ navigation, route }) => {
   const [visibleBtn, setVisibleBtn] = useState(true);
   const [loading, setLoading] = useState(false);
   const { showAlertModal } = React.useContext(AppContext);
   let profile = route.params["profile"];
-
+  const [phone] = useState (profile.phone)
+  
+  const [requestID, setRequestId] = useState("") // mm - id devuelvo por el setotp
   const mode = useColorScheme();
 
+  const otpRef = useRef(null);
+
+  async function setOTP()
+  {
+    try{
+      let aux = await fetch (URL_OTP_REQUEST, {
+            method: 'POST',
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ phone: phone })})
+
+      let response = await aux.json();
+      setRequestId (response.requestId);
+      }
+      catch (e) {console.log (e)}
+  }
+
   useEffect(() => {
+    
+    setOTP ()
+    
     return () => {
       console.log("🧹 Componente desmontado");
       // Esto se ejecuta cuando el componente se va de pantalla
     };
   }, []); //
 
+ 
   async function checkOTP() {
     if (otp.length >= 4) {
       // si ingresaron todos los numeros
       try {
+        
         setLoading(true);
         setVisibleBtn(false);
-        let aux = await db_checkOTP(profile.phone, otp);
         
-        if (aux) {
+        console.log('📤 Enviando validación OTP');
+        console.log('requestID:', requestID);
+        console.log('otp:', otp);
+        
+        let aux = await fetch (URL_OTP_VALIDATE, {
+          method: 'POST',
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ requestId: requestID,  code: otp})})
+      
+        let response = await aux.json();
+        
+        if (aux.ok && response.token) {
           // mm - creo el id en el local
           let local = new LOCAL()
           local.idUser = profile.phone
@@ -72,6 +110,7 @@ const OTPScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={getStyles(mode).container}>
+      
       <Loading loading={loading} title="Verificando código..." />
       <KeyboardAvoidingView behavior="padding" style={[tStyles.flex1]}>
         <View style={[tStyles.centery, { paddingVertical: 15 }]}>

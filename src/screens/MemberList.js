@@ -142,6 +142,7 @@ const MemberList = ({ navigation, route }) => {
     if (selectedContacts.length==0)
     { setGroupName (contact.name)}
 
+    debugger
     // mm - solo agrego la cantidad maxima de contactos
     if (selectedContacts.length < _maxContactPerGroup) {
       /// mm - si aun no esta en la lista para no agregarlo duplicado que da error
@@ -256,14 +257,13 @@ const ContactItem = ({ addContactToList, item }) => {
 
 const SelectedItem = ({ removeContactFromList, item }) => {
   const mode = useColorScheme();
-
   return (
     <TouchableOpacity
       onPress={() => removeContactFromList(item)}
       style={getStyles(mode).selectedContact}
     >
       <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
-        <ImgAvatar id={item.id} nombre={item.name} detail={false}/>
+        <ImgAvatar id={item.phone} nombre={item.name} detail={false}/>
         <View style={getStyles(mode).avatarHolder}>
           <Fontisto name="close" size={16} color={colors.gray30} />
         </View>

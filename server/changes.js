@@ -1,7 +1,10 @@
 import express from "express";
 import { WebSocketServer } from "ws";
 
-const COUCH_URL = "http://localhost:5984"; // ajustá usuario/clave
+const COUCH_URL = "http://34.39.168.70:5984"; // ajustá usuario/clave
+const NOTIFICATION_URL = "http://localhost:5000/send"; // ajustá usuario/clave
+const SOURCE="ws"
+
 const DBS = ["ticket_chat", "ticket", "ticket_log_status"]; // bases que querés escuchar
 
 // Extraer credenciales (si están embebidas) y construir COUCH_BASE y Authorization header
@@ -89,8 +92,15 @@ async function watchDB(dbName) {
             since = change.seq; // actualiza secuencia
             const payload = { db: dbName, change };
 
+            if (change.doc.data.idToUser =="") return
+            
+            /// OJO!!!! tomar en cuenta que si al enviar es vacio no seguir
             // Extraer idUserTo del documento (puede estar en change.doc.data.idUserTo o change.doc.idUserTo)
-            const idUserTo = change.doc?.data?.idUserTo || change.doc?.idUserTo;
+            let idUserTo = change.doc?.data?.idUserTo || change.doc?.idUserTo;
+      	    let idUserToAux = idUserTo.replace(/\+/g, '')
+
+            sendNotificaction (dbName, idUserToAux, change.doc)
+            
 
             // Envía solo a los clientes cuyo idUser coincida con idUserTo
             let sent = 0;
@@ -104,6 +114,9 @@ async function watchDB(dbName) {
                 try {
                   console.log(`📤 Enviando a cliente (idUser: ${client.idUser})`);
                   client.send(JSON.stringify(payload));
+
+                  
+                  
                   sent++;
                   break // mm - ya encontre al usuario, salgo
                 } catch (e) {
@@ -126,6 +139,25 @@ async function watchDB(dbName) {
   }
 }
 
+async function sendNotificaction (dbName, idUserTo, doc)
+{
+  try{
+
+    let title = ""
+    let msg = ""
+    if (dbName =="ticket_log_status" )
+    {
+      title = ""
+      msg = doc.data.message
+      let url = NOTIFICATION_URL + "?to=" + idUserTo + "&title=" + encodeURIComponent (title) + "&body=" + encodeURIComponent (msg)
+      console.log (url)
+      const res = await fetch(url);
+    }
+
+
+  }
+  catch (e) {console.log ("Error en sendNotification", e)}
+}
 // Inicia un watcher por cada base
 DBS.forEach((db) => watchDB(db));
 

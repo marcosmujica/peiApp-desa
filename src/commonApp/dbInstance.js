@@ -3,7 +3,6 @@ class DatabaseInstance {
     constructor() {
         if (!DatabaseInstance.instance) {
             this._db = [
-                {name: 'otp', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: false,emitEvent: false, filterArray: {phone: ""}, syncInterval:240000},
                 {name: 'ticket', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [{name:"index_1", fields:["idTicket", "idUserTo", "idUserFrom"]}, {name:"index_2",fields:["idTicket"]}], live: true,emitEvent: true, filterArray: {idUserTo: ""}, syncInterval:120000},
                 {name: 'ticket_chat', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: true,emitEvent: true, filterArray: {}, syncInterval:120000},
                 {name: 'ticket_log_status', dbLocal: undefined, dbRemote: undefined, options: {}, syncSide: "REMOTE", created: false, index: [], live: true,emitEvent: true, filterArray: {idUserTo: ""}, syncInterval:120000},

@@ -10,9 +10,17 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "ioredis": "^5.8.2",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "sharp": "^0.34.3"
+    "redis": "^5.10.0",
+    "sharp": "^0.34.3",
+    "twilio": "^5.10.6",
+    "ws": "^8.18.3"
   },
   "keywords": []
 }

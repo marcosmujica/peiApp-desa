@@ -18,6 +18,9 @@ export const URL_FILE_AVATAR_PREFIX = `avatar__`
 export const URL_FILE_SMALL_PREFIX = `small__`
 export const URL_FILE_NORMAL_PREFIX = `normal__`
 
+export const URL_OTP_REQUEST = "http://34.39.168.70:3200/otp"
+export const URL_OTP_VALIDATE = "http://34.39.168.70:3200/validate"
+
 export const MAIN_GROUP_BY_COLLECT = "Cobrados"
 export const MAIN_GROUP_BY_PAY = "Pagados"
 export const MAIN_GROUP_BY_INVESTMENT = "Inversiones"

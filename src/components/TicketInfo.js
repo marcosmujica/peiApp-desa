@@ -282,23 +282,29 @@ const TicketInfo = ({ idTicket }) => {
       setContactName(contactObj && contactObj.name ? contactObj.name : "");
       // mm - lo guardo en una variable porque no le da el tiempo de guardarla y luego consultarla
       setRefreshtitle("Buscando cambios...");
+      
       let dateAux = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, "TS", "desc");
-      let TSDueDateAux = dateAux.length == 0 ? new Date() : dateAux[0].data.dueDate;
-
+      dateAux.map ((item)=> console.log ("Fecha:", item.TS))
+      // mm si tengo tomo el primer elemento porque esta ordenado descendentemente por ts
+      let TSDueDateAux = dateAux.length == 0 ? new Date() : new Date(dateAux[0].data.dueDate);
       // mm - conformo el partialamount segun los pagos hechos
-      let payStatus = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_PAY_STATUS, "TS", "desc");
+      let payStatus = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_PAY_STATUS, "TS", "asc");
       let amount = 0;
       let payList = [];
+
+      
       payStatus.forEach((element, index) => {
-        console.log(element);
+        let aux = PAY_METHOD.find ((item)=> item.code == element.data.payMethod)
+        let methodName = aux.name || ""
         payList.push({
-          id: index,
+          id: index, 
           TSPay: element.data.TSPay,
           uri: element.data.uri,
           idUser: element.idUserFrom,
           currency: element.data.currency,
           dueDate: element.data.dueDate,
           amount: element.data.amount,
+          payMethodName: methodName
         });
         amount = amount + element.data.amount;
       });
@@ -916,10 +922,16 @@ const PayItem = ({ payItem, onOpen }) => {
         margin: 10,
         justifyContent: "space-between",
       }}>
-      <ImgAvatar id={payItem.idUser} size={25} detail={false} />
-      <Text style={[getStyles(mode).chatText, { fontWeight: "bold", color: colors.primary, marginLeft: 8, flex: 1 }]}>
-        {moment(payItem.TSPay).format("D MMM, HH:mm")} - {payItem.currency} {formatNumber(payItem.amount)}
-      </Text>
+      <ImgAvatar id={payItem.idUser} size={35} detail={false} />
+      <View style={{ flex: 1, marginLeft: 8 }}>
+        <Text style={[getStyles(mode).chatText, { fontWeight: "bold", color: colors.primary }]}>
+          {moment(payItem.TSPay).format("D MMM, HH:mm")} - {payItem.currency} {formatNumber(payItem.amount)}
+        </Text>
+        <Text style={[getStyles(mode).subNormalText, { color: colors.gray50, fontSize: 12 }]}>
+          {payItem.payMethodName}
+        </Text>
+      </View>
+      
       {payItem.uri != "" && (
         <TouchableOpacity
           onPress={() => {
@@ -938,6 +950,7 @@ const PayItem = ({ payItem, onOpen }) => {
           <Fontisto name="paperclip" size={15} style={[getStyles(mode).iconBtn, { borderWidth: 0, padding: 0 }]} />
         </TouchableOpacity>
       )}
+      
     </View>
   );
 };

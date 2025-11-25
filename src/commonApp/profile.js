@@ -17,6 +17,7 @@ export async function initProfile ()
         if (!_local)
         {return false}
         else { 
+            //_idUser = _local[0].idUser.replace(/\+/g, '')
             _idUser = _local[0].idUser
             _profile = await db_getProfile() 
         }
@@ -35,6 +36,13 @@ export async function setProfile (doc)
     _idUser = doc.idUser
     return (await saveProfile())
 }
+
+export async function setNotificationToken (id)
+{
+    _profile.notificationToken = id
+    await saveProfile()
+}
+
 export function isLogged ()
 {return _profile && _profile.isLogged ? _profile.isLogged : false}
 

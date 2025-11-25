@@ -194,7 +194,7 @@ export class TICKET {
     this.title = "" // mm - titulo del ticket
     this.note = "" // mm - descripcion del ticket
     this.notePrivate = "" // mm - descripcion privada del ticket, para guardar informacion que solo ve el creador
-    this.TSDueDate = new Date() // mm - cuando vence el ticket
+    this.initialTSDueDate = new Date() // mm - cuando vence el ticket
     this.source = "app" // mm - por que medio se creo el ticket, por ej desde api externa
     this.sourceInfo = "" // mm - info puntual que el source quiera agregar
     this.document = { 
@@ -307,6 +307,7 @@ export class PROFILE {
     this.privateGroupByCollect = ""
     this.privateGroupByPay = ""
     this.privateGroupByInvestment = ""
+    this.notificationToken = ""
     this.config = new USER_CONFIG()
 
     Object.seal(this);

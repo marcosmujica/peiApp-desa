@@ -809,7 +809,20 @@ export class DB {
    */
   async _applyRemoteChange(change) {
     try {
+      // Validar que el cambio tenga documento
+      if (!change || !change.doc) {
+        console.log(`[DB:${this.dbName}] ⚠ Cambio sin documento válido, ignorando:`, change);
+        return;
+      }
+
       const remoteDoc = change.doc;
+      
+      // Validar que el documento tenga _id
+      if (!remoteDoc._id) {
+        console.log(`[DB:${this.dbName}] ⚠ Documento remoto sin _id, ignorando:`, remoteDoc);
+        return;
+      }
+
       const localDoc = await this._getLocal(remoteDoc._id);
       
       if (!localDoc) {

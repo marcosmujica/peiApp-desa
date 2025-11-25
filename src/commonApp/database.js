@@ -24,9 +24,11 @@ export const db_TICKET_INFO = "ticket_info"
 export const db_TICKET_VIEW = "ticket_view"
 export const db_TICKET_REPEAT = "ticket_repeat"
 
-const DB_URL = "http://34.39.168.70:5984"
-const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
-const DB_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
+const DB_URL = "http://34.39.168.70:5985"
+const DB_USERNAME = "app_user";
+const DB_PASSWORD = "app_password_2024";
+//const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
+//const DB_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
 
 // Obtener la instancia global de la base de datos
 const _db = dbInstance.getDB();
@@ -107,11 +109,24 @@ export async function db_getTicketLogByStatus(idTicket, idStatus, sortBy="TS", o
 {    
     let results = await db_find(db_TICKET_LOG_STATUS, { idTicket: idTicket, idStatus: idStatus });
     if (Array.isArray(results) && results.length > 0) {
-        if (order === "asc") {
-            results.sort((a, b) => (a[sortBy] ?? 0) - (b[sortBy] ?? 0));
-        } else if (order === "desc") {
-            results.sort((a, b) => (b[sortBy] ?? 0) - (a[sortBy] ?? 0));
-        };
+        results.sort((a, b) => {
+            let aVal = a[sortBy];
+            let bVal = b[sortBy];
+            
+            // Convertir a Date si es string de fecha
+            if (typeof aVal === 'string') aVal = new Date(aVal);
+            if (typeof bVal === 'string') bVal = new Date(bVal);
+            
+            // Convertir Date a timestamp
+            if (aVal instanceof Date) aVal = aVal.getTime();
+            if (bVal instanceof Date) bVal = bVal.getTime();
+            
+            // Usar 0 si es undefined/null
+            aVal = aVal ?? 0;
+            bVal = bVal ?? 0;
+            
+            return order === "asc" ? aVal - bVal : bVal - aVal;
+        });
     }
     return results
 }
@@ -194,7 +209,7 @@ export async function db_getTicketsViewIdGroupBy (idGroupBy)
 export async function db_saveProfile(profile)
 {
     // mm - le cambio al id el + porque da problemas
-   return await db_add (db_PROFILE, profile.phone, profile)
+   return await db_add (db_PROFILE, profile.phone.replace(/\+/g, ''), profile)
 }
 
 export async function db_saveLocal(doc)

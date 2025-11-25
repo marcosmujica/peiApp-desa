@@ -75,7 +75,7 @@ const Login = ({ navigation }) => {
                         aux.idUser = aux.phone // mm - le seteo el id del usuario como el phone
 
                         //await setProfile(aux)
-                        await db_setOTP (aux.phone)
+                        
                         navigation.navigate('OTPScreen', {profile:aux})
                         setLoading (false)
                     }

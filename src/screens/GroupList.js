@@ -268,7 +268,7 @@ const SelectedItem = ({ removeContactFromList, item }) => {
       style={getStyles(mode).selectedContact}
     >
       <View style={[getStyles(mode).linkIconHolder, { marginRight: 15 }]}>
-        <ImgAvatar id={item.id} nombre={item.name} detail={false}/>
+        <ImgAvatar id={item.phone} nombre={item.name} detail={false}/>
         <View style={getStyles(mode).avatarHolder}>
           <Fontisto name="close" size={16} color={colors.gray30} />
         </View>

@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 // Configurar comportamiento de notificaciones
 Notifications.setNotificationHandler({
@@ -69,7 +70,18 @@ class NotificationManager {
   async getExpoPushToken() {
     let token;
 
+    // Detectar si se está ejecutando en Expo Go
+    const isExpoGo = Constants.appOwnership === 'expo';
+    
+    if (isExpoGo) {
+      console.warn('⚠️ Notificaciones push deshabilitadas en Expo Go (requiere development build)');
+      // Retornar token mock para que la app siga funcionando
+      token = `ExponentPushToken[expo-go-mock-${Date.now()}]`;
+      return token;
+    }
+
     if (Platform.OS === 'android') {
+      console.log ("Configurando canal Android")
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,

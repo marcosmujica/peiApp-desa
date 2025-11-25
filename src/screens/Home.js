@@ -9,6 +9,7 @@ import SlideOptions from "../components/SlideOptions";
 import AppContext from "../context/appContext";
 import { displayTime, ellipString } from "../common/helpers";
 import SearchBar from "../components/SearchBar";
+import pushNotifications from '../commonApp/PushNotifications';
 import BadgeBtn from "../components/BadgeBtn";
 import {
   db_getAllTicketInfoView,
@@ -24,7 +25,7 @@ import {
   db_TICKET_CHAT,
 } from "../commonApp/database";
 import ImgAvatar from "../components/ImgAvatar";
-import { getProfile, _idUser} from "../commonApp/profile";
+import { getProfile, setNotificationToken, _idUser} from "../commonApp/profile";
 import { TICKET_LIST_ITEM } from "../commonApp/dataTypes";
 import {recoveryAllContacts} from '../commonApp/contacts';
 import { formatDateToText, formatNumber, deepObjectMerge } from "../commonApp/functions";
@@ -36,9 +37,7 @@ moment.locale("es");
 
 const Home = ({ navigation }) => {
   const FILTER_TICKETS = "TICKETS";
-  const FILTER_GROUPS = "GROUPS";
-  const FILTER_WAY = "PAY";
-
+  
   const TICKET_TYPE_ALL = "all";
 
   const FILTER_TICKETS_ALL = "all";
@@ -134,6 +133,16 @@ const Home = ({ navigation }) => {
   useEffect(() => {
     // subscribe to new-doc events to reload list
 
+    const notificationStart = async () => {
+      setNotificationToken (pushNotifications.getToken())}
+  
+    const startNotification = async () => {
+      await pushNotifications.initialize(notificationStart);
+      const token = pushNotifications.getToken();
+      console.log('📱 Token de notificaciones:', token);
+    }
+
+    startNotification()
     getContacts ()
     checkDB();
     loadData();
@@ -276,17 +285,10 @@ const TicketItem = ({ item, idUser, onClick, idProfile }) => {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   
-  let icon=""
-  if (item.expensesCategory && item.expensesCategory != "")
-    {let aux = EXPENSES_CATEGORY.find ((aux)=> aux.code == item.expensesCategory)
-      icon = aux.iconName
-    }
-  
   return (
     <TouchableOpacity onPress={() => onClick(item.idTicket, item.title, item.seen)} style={getStyles(colorScheme).chatContainer}>
       <View >
         <ImgAvatar id={item.idUserTo == "" ? idProfile : item.idUserTo} size={50} detail={item.idUserTo == "" ? false : true}/>
-        {icon!="" && <MaterialCommunityIcons name={icon} size={20} style={{position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.gray50, borderRadius: 25, padding:5, color:colors.white}}/>}
       </View>
       <View style={{ flex: 1, marginLeft: 13, flexDirection: "column", justifyContent: "center" }}>
         {/* Primera línea: title (izquierda) - ts (derecha) */}

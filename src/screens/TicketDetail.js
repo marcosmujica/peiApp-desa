@@ -20,19 +20,24 @@ import TicketLog from "../components/TicketLog";
 import { db_getTicket } from "../commonApp/database";
 import { isMe } from "../commonApp/profile";
 import { getContactName } from "../commonApp/contacts";
+import { TICKET } from "../commonApp/dataTypes";
+import { useReducedMotion } from "react-native-reanimated";
 
 //import { ModalSlideFromBottomIOS } from '@react-navigation/stack/lib/typescript/src/TransitionConfigs/TransitionPresets';
 
 const TicketDetail = ({ navigation, route }) => {
   const mode = useColorScheme();
   const behavior = Platform.OS === "ios" ? "height" : "padding";
-  const { options, setOptions, showAlertModal } = React.useContext(AppContext);
 
   const [idTicket] = useState(route.params["idTicket"]);
   const [idUserTo, setIdUserTo] = useState("");
   const [ticketName, setTicketName] = useState("");
   const [loading, setLoading] = useState(false);
   const [codeActive, setCodeActive] = useState("");
+
+  // mm - convertir ticket a estado para mantener el valor actualizado
+  const [ticket, setTicket] = useState(new TICKET());
+  const [options, setOptions] = useState ([])
 
   const [buttons, setButtonsStatus] = useState([
       {
@@ -90,17 +95,40 @@ const TicketDetail = ({ navigation, route }) => {
     viewInfo()
   }
 
+  async function duplicateTicket()
+  {
+    console.log ("params duplicar ticket")
+    console.log ("idUserTo:", idUserTo)
+    console.log ("ticket:", ticket)
+    // mm - asegurar que idUserTo tenga valor antes de navegar
+    if (!idUserTo) {
+      console.warn("idUserTo está vacío");
+      return;
+    }
+    navigation.navigate ("NewTicket", {ticketDefault: ticket, idTicketGroup: "", usersList: [idUserTo]})
+  }
+
   async function loadTicket()
   {
     try {
       let aux = await db_getTicket (idTicket)
+      
       if (!aux) return
 
+      console.log ("Ticket cargado:", aux)
       //mm - si el ticket lo cree yo el usuario es el otro
-      setIdUserTo (isMe (aux.idUserCreatedBy) ? aux.idUserTo : aux.idUserFrom)
+      const userTo = isMe (aux.idUserCreatedBy) ? aux.idUserTo : aux.idUserFrom;
+      setIdUserTo (userTo)
+      console.log ("idUserTo establecido:", userTo)
+      
+      // mm - usar una función arrow que lea el estado actual cuando se ejecute
+      setOptions (!isMe (aux.idUserCreatedBy) ? [ ]: [{name:"copy", onClick: () => {
+        navigation.navigate ("NewTicket", {ticketDefault: aux, idTicketGroup: "", usersList: [userTo]})
+      }}])
 
+      // mm - actualizar el estado del ticket
+      setTicket(aux)
       setTicketName (aux.title)
-
 
     } catch (e) {console.log ("error loadticket");console.log (e)}
   }
@@ -124,7 +152,7 @@ const TicketDetail = ({ navigation, route }) => {
       <Loading loading={loading} title="Buscando..." />
       <KeyboardAvoidingView behavior={behavior} style={[tStyles.flex1]}>
         {/* Top Bar  */}
-        <TitleBar title={ticketName} subtitle={getContactName(idUserTo)} goBack={true} options={[]} idAvatar={idUserTo} detail={false}/>
+        <TitleBar title={ticketName} subtitle={getContactName(idUserTo)} goBack={true} idAvatar={idUserTo} detail={false} options={options}/>
         <View style={{ padding: 10 }}>
           <BadgeBtn idActive={codeActive}  items={buttons}></BadgeBtn>
         </View>

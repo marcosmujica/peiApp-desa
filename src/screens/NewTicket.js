@@ -58,6 +58,22 @@ import BadgeBtn from "../components/BadgeBtn";
 const NewTicket = ({ navigation, route }) => {
   const [idTicketGroup] = React.useState(route.params["idTicketGroup"] || "");
   const [idTicketGroupBy] = React.useState(route.params["idTicketGroupBy"] || "");
+  
+  // mm - si no viene un parametro ticketDefault lo inicializo en blanco
+  // este parametro toma los datos por default de los campos
+  // Usar useState con función inicializadora para que solo se calcule una vez
+  const [isNewTicket] = React.useState(() => route.params["ticketDefault"] == undefined);
+  const [ticketDefault] = React.useState(() => {
+    const profileAux = getProfile();
+    let ticket = isNewTicket ? new TICKET() : route.params["ticketDefault"];
+    // mm - si se crea un ticket nuevo se pone el currency por default
+    if (isNewTicket) {
+      ticket.currency = profileAux.defaultCurrency;
+    }
+    return ticket;
+  });
+  const [usersList] = React.useState(() => route.params["usersList"] || []);
+
   const [useType, setUseType] = React.useState(TICKET_USE_TYPE_PERSONAL);
   const [isShowDetail, setIsShowDetail] = React.useState(false);
   const [isCollectProcedure, setIsCollectProcedure] = React.useState (true)
@@ -66,19 +82,6 @@ const NewTicket = ({ navigation, route }) => {
   const [repeatEndDate, setRepeatEndDate] = React.useState (new Date())
   const [docAttachmentFilename, setDocAttachmentFilename] = React.useState ("")
   const [docAttachment, setDocAttachment] = React.useState ({})
-  let usersList = route.params ["usersList"] || []
-
-  // mm - si no viene un parametro ticketDefault lo inicializo en blanco
-  // este parametro toma los datos por default de los campos
-  let isNewTicket = route.params["ticketDefault"] == undefined;
-
-  let ticketDefault = isNewTicket ? new TICKET() : route.params["ticketDefault"];
-
-  let profileAux = getProfile();
-
-  // mm - si se crea un ticket nuevo se pone el currency por default, porque puede ser un duplicado y ya viene la moneda
-
-  if (isNewTicket) ticketDefault.currency = profileAux.defaultCurrency;
 
   const [userAreaWork, setUserAreaWork] = useState([{ name: "", code: "" }]);
 
@@ -94,9 +97,12 @@ const NewTicket = ({ navigation, route }) => {
   const { showAlertModal } = React.useContext(AppContext);
   const [loading, setLoading] = React.useState("");
   const [payMethodInfo, setPayMethodInfo] = React.useState(ticketDefault.paymentInfo.paymentMethod);
-  const [expensesCategory, setExpensesCategory] = React.useState("");
-  const [ticketType, setTicketType] = React.useState("");
-  const [defaultCurrency, setDefaultCurrency] = React.useState(profileAux.defaultCurrency || "USD");
+  const [expensesCategory, setExpensesCategory] = React.useState();
+  const [ticketType, setTicketType] = React.useState(ticketDefault.way);
+  const [defaultCurrency, setDefaultCurrency] = React.useState(() => {
+    const profileAux = getProfile();
+    return ticketDefault.currency == "" ? profileAux.defaultCurrency : ticketDefault.currency;
+  });
   const [ticketStatus, setTicketStatus] = React.useState(TICKET_DETAIL_DEFAULT_STATUS); // mm - lo dejo sin estado al principio para que el usuario se obligue a marcarlo
   const [groupInfo, setGroupInfo] = React.useState({});
   const [isTicketOpen, setisTicketOpen] = React.useState(true); // mm - si es pago o cobro
@@ -104,7 +110,7 @@ const NewTicket = ({ navigation, route }) => {
   const [billsAmount, setBillsAmount] = React.useState(0);
   const [isRecurrent, setIsRecurrent] = useState(false);
   const [statusList, setStatusList] = useState([]);
-  const [profile, setProfile] = useState(profileAux);
+  const [profile, setProfile] = useState(() => getProfile());
   const [groupUsersList, setGroupUsersList] = useState([]);
   const [payType, setTypePay] = useState(TICKET_INFO_TYPE_PAY_PLANNED);
 
@@ -166,7 +172,8 @@ const NewTicket = ({ navigation, route }) => {
       return;
     }
 
-    if (ticketType == TICKET_TYPE_PAY && expensesCategory == "") {
+
+    if (ticketType == TICKET_TYPE_PAY && (expensesCategory == "" || expensesCategory==undefined)) {
       showAlertModal("Atención", "Por favor selecciona tipo de gasto");
       return;
     }
@@ -213,7 +220,7 @@ const NewTicket = ({ navigation, route }) => {
 
           // mm - agrego los 2 registros, pay y collect de esta manera para que no me guarde info sucia porque el usuario pudo haber seleccionado info para pay o collect y despues haberla cambiada
           if (ticketType == TICKET_TYPE_PAY) {
-            ticketInfoPay.info.expensesCategory = expensesCategory.code == undefined ? "" : expensesCategory.code;
+            ticketInfoPay.info.expensesCategory = expensesCategory?.code || "";
             ticketInfoPay.info.type = payType
           } else {
             ticketInfoCollect.info.billsAmount = Number(billsAmount);
@@ -258,8 +265,8 @@ const NewTicket = ({ navigation, route }) => {
           data.idUserTo = isMe (idToUser) ? "" : idToUser; // mm - guardo para poder filtrar en los eventos del log
           data.data.amount = ticketAmount;
           data.message = isTicketOpen
-            ? "Se creo el ticket por " + defaultCurrency + " " + formatNumber(ticketAmount)
-            : "Se ingreso un ticket cumplido por " + defaultCurrency + " " + formatNumber(ticketAmount);
+            ? profile.name + " creo el ticket '" + ticketName + "' por " + defaultCurrency + " " + formatNumber(ticketAmount) + " que vence el " + formatDateToStringLong(dueDate) 
+            : profile.name + " ingreso el ticket '" + ticketName + "' cumplido por " + defaultCurrency + " " + formatNumber(ticketAmount);
 
           await db_addTicketLogStatus(data);
 
@@ -269,7 +276,7 @@ const NewTicket = ({ navigation, route }) => {
           data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
           data.idUserFrom = profile.idUser;
           data.idUserTo = isMe (idToUser) ? "" : idToUser; // mm - guardo para poder filtrar en los eventos del log
-          data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(data.TSDueDate);
+          data.message = "Se fijo la fecha inicial de vencimiento del ticket para el " + formatDateToStringLong(dueDate);
           data.data.dueDate = dueDate;
 
           await db_addTicketLogStatus(data);
@@ -288,7 +295,7 @@ const NewTicket = ({ navigation, route }) => {
           ticket.note = ticketDesc;
           ticket.notePrivate = ticketDescPrivate;
           ticket.way = ticketType;
-          ticket.TSDueDate = dueDate; // mm - fecha inicial de vencimiento
+          ticket.initialTSDueDate = dueDate; // mm - fecha inicial de vencimiento
           ticket.paymentInfo.paymentMethod = payMethodInfo;
           ticket.metadata.externalReference = ticketRef;
           ticket.idUserCreatedBy = profile.idUser;
@@ -298,6 +305,7 @@ const NewTicket = ({ navigation, route }) => {
           ticket.idTicketGroupBy = idTicketGroupBy;
           ticket.idTicketGroup = idTicketGroup;
           ticket.collectionProcedure = isCollectProcedure
+          ticket.initialTSDueDate = dueDate
           if (!docAttachment.remotefilename) {
           } else {
             ticket.document.mediaType = docAttachment.type;
@@ -371,11 +379,9 @@ const NewTicket = ({ navigation, route }) => {
 
     let auxProfile = getProfile();
     setProfile(auxProfile);
-    // mm - solo actualizar si tiene un valor válido
-    
-    setPayMethodInfo(auxProfile.payMethodInfo);
 
-    //ticketDefault.currency == "" ? "USD" : ticketDefault.currency
+    // mm - solo actualizar si tiene un valor válido
+    if (payMethodInfo == "") {setPayMethodInfo(auxProfile.payMethodInfo)};
 
     let aux = [];
 
@@ -386,9 +392,13 @@ const NewTicket = ({ navigation, route }) => {
 
     // mm - obtengo la infoirmacion del grupo
     try {
+      // mm - obtener usersList directamente de route.params para asegurar el valor actual
+      const usersListParam = route.params["usersList"] || [];
+      console.log("usersList desde params:", usersListParam);
+      
       // mm - agrego a la lista y le pongo el idunico
       setGroupUsersList(
-        usersList.map((item, index) => ({
+        usersListParam.map((item, index) => ({
           name: getContactName(item),
           contact: item,
           id: index + 1,
@@ -410,10 +420,13 @@ const NewTicket = ({ navigation, route }) => {
       {name:"El " + new Date().getDate() + " de " + getMonthName() + " de cada año", code: REPEAT_ANNUALY}
     ]);
 
-    if (auxProfile.defaultCurrency && auxProfile.defaultCurrency !== "") {
-      setDefaultCurrency(auxProfile.defaultCurrency);
-    }
     setStatusList(TICKET_DETAIL_STATUS.filter((item) => item.admin == true));
+
+    
+    setTicketName(ticketDefault.title)
+
+    console.log (route.params)
+  
     setLoading(false);
   }
 

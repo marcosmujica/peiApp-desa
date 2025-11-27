@@ -31,7 +31,7 @@ const OTPScreen = ({ navigation, route }) => {
 
   const otpRef = useRef(null);
 
-  async function setOTP()
+  async function getOTP()
   {
     try{
       let aux = await fetch (URL_OTP_REQUEST, {
@@ -49,7 +49,7 @@ const OTPScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     
-    setOTP ()
+    getOTP ()
     
     return () => {
       console.log("🧹 Componente desmontado");
@@ -96,13 +96,16 @@ const OTPScreen = ({ navigation, route }) => {
               cancel: false,
             }
           );
-          setOtp("")
         }
         setVisibleBtn(true);
-        setLoading(false);
+        
       } catch (e) {
+        showAlertModal ("Error", "Existio un error al intentar acceder al código, por favor reintenta más tarde")
         console.log(e);
       }
+      setVisibleBtn(true);
+      setOtp ("")
+      setLoading(false);
     }
   }
 

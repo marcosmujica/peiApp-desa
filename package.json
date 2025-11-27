@@ -18,8 +18,10 @@
     "axios": "^1.12.2",
     "eventemitter3": "^5.0.1",
     "expo": "~54.0.24",
+    "expo-constants": "^18.0.10",
     "expo-contacts": "~15.0.10",
     "expo-crypto": "~15.0.7",
+    "expo-dev-client": "~6.0.18",
     "expo-device": "~8.0.9",
     "expo-document-picker": "~14.0.7",
     "expo-file-system": "~19.0.15",
@@ -40,6 +42,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-calendars": "^1.1313.0",
     "react-native-country-flag": "^2.0.2",
     "react-native-country-picker-modal": "^2.0.0",
     "react-native-dropdown-country-picker": "^1.0.11",
@@ -48,6 +51,7 @@
     "react-native-get-random-values": "~1.11.0",
     "react-native-image-picker": "^8.2.1",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
+    "react-native-paper": "^5.14.5",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
@@ -57,7 +61,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "react-toastify": "^11.0.5"
   },
   "private": true,
   "devDependencies": {

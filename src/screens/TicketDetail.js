@@ -39,30 +39,7 @@ const TicketDetail = ({ navigation, route }) => {
   const [ticket, setTicket] = useState(new TICKET());
   const [options, setOptions] = useState ([])
 
-  const [buttons, setButtonsStatus] = useState([
-      {
-        id: "INFO",
-        title: "Info",
-        active: true,
-        onClick: () => viewInfo(),
-      },
-      {
-        id: "CHAT",
-        title: "Chat",
-        active: false,
-        onClick: () => viewChat(),
-      },
-      {
-        id: "LOG",
-        title: "Cambios",
-        active: false,
-        onClick: () => viewLog(),
-      },{
-        id: "EDIT",
-        title: "Datos",
-        active: false,
-        onClick: () => viewEdit(),
-      },]);
+  const [buttons, setButtonsStatus] = useState([])
 
   const [isShowInfo, setIsShowInfo] = useState(false);
   const [isShowChat, setIsShowChat] = useState(false);
@@ -130,6 +107,15 @@ const TicketDetail = ({ navigation, route }) => {
       setTicket(aux)
       setTicketName (aux.title)
 
+      let buttonsList = []
+      buttonsList.push ({id: "INFO", title: "Info", active: true, onClick: () => viewInfo()})
+
+      if (aux.idUserTo !="") buttonsList.push ({id: "CHAT", title: "Chat", active: false, onClick: () => viewChat()})
+
+      buttonsList.push ( {id: "LOG",title: "Cambios", active: false, onClick: () => viewLog()})
+      buttonsList.push ( {id: "EDIT", title: "Datos", active: false, onClick: () => viewEdit()})
+
+      setButtonsStatus (buttonsList)
     } catch (e) {console.log ("error loadticket");console.log (e)}
   }
 

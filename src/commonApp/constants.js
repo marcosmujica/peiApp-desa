@@ -10,16 +10,16 @@ import { Platform } from 'react-native';
 // Para producción, usa tu dominio real
 const DEV_IP = Platform.OS === 'web' ? 'localhost' : '10.102.2.77'; // Cambia esto por tu IP local
 
-export const URL_AVATAR_IMG = `http://34.39.168.70:3000/uploads/`
-export const URL_FILE_UPLOAD = `http://34.39.168.70:3000/upload/`
-export const URL_AVATAR_IMG_UPLOAD = `http://34.39.168.70:3000/upload/`
-export const URL_FILE_DOWNLOAD = `http://34.39.168.70:3000/uploads/`
+export const URL_AVATAR_IMG = `https://api.peiapp.tech/images/uploads/`
+export const URL_FILE_UPLOAD = `https://api.peiapp.tech/images/upload/`
+export const URL_AVATAR_IMG_UPLOAD = `https://api.peiapp.tech/images/upload/`
+export const URL_FILE_DOWNLOAD = `https://api.peiapp.tech/images/uploads/`
 export const URL_FILE_AVATAR_PREFIX = `avatar__`
 export const URL_FILE_SMALL_PREFIX = `small__`
 export const URL_FILE_NORMAL_PREFIX = `normal__`
 
-export const URL_OTP_REQUEST = "http://34.39.168.70:3200/otp"
-export const URL_OTP_VALIDATE = "http://34.39.168.70:3200/validate"
+export const URL_OTP_REQUEST = "https://api.peiapp.tech/otp/otp"
+export const URL_OTP_VALIDATE = "https://api.peiapp.tech/otp/validate"
 
 export const MAIN_GROUP_BY_COLLECT = "Cobrados"
 export const MAIN_GROUP_BY_PAY = "Pagados"

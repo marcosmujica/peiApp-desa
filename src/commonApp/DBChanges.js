@@ -7,7 +7,7 @@ import {EVENT_DB_CHANGE } from "./DBEvents"
 import { _idUser } from "./profile"
 import { db_addDirect } from "./database"
 
-const WS_URL = "ws://34.39.168.70:4000"; // ejemplo
+const WS_URL = "wss://wss.peiapp.tech"; // ejemplo
 const WS_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";
 const WS_PASSWORD = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
 

@@ -10,6 +10,7 @@ export const MainStackNavigator = () => {
             <Stack.Screen name="MainScreen" component={ MainScreen } />
             <Stack.Screen name="PreLogin" component={ Screens.PreLogin } />
             <Stack.Screen name="Login" component={ Screens.Login } />
+            <Stack.Screen name="QuickEntry" component={ Screens.QuickEntry } />
             <Stack.Screen name="UserGroupInfo" component={ Screens.UserGroupInfo } />
             <Stack.Screen name="MoneyAgenda" component={ Screens.MoneyAgenda } />
             <Stack.Screen name="HomeRepeat" component={ Screens.HomeRepeat } />

@@ -4,7 +4,7 @@ const app = express();
 const PORT = 5000;
 
 // Configuración de CouchDB
-const COUCH_URL = "http://34.39.168.70:5984";
+const COUCH_URL = "http://localhost:5984";
 const COUCH_USER = "admin_X9!fQz7#Lp4Rt8$Mh2";
 const COUCH_PASS = "G@7hX!2$kP9^mQ4&rZ6*Ty1wVb";
 const AUTH_HEADER = "Basic " + Buffer.from(`${COUCH_USER}:${COUCH_PASS}`).toString("base64");
@@ -84,6 +84,55 @@ async function sendPushNotification(token, title, body, data = {}) {
     throw error;
   }
 }
+
+/**
+ * GET /test
+ * Endpoint de prueba simple - envía notificación directamente con un token
+ * 
+ * Query params:
+ * - token: El Expo Push Token (ej: ExpoToken[xxx] o mock-token-xxx)
+ * - title: Título (opcional, default: "Prueba")
+ * - body: Mensaje (opcional, default: "Notificación de prueba")
+ */
+app.get('/test', async (req, res) => {
+  try {
+    const { token, title = 'Prueba', body = 'Notificación de prueba desde el servidor' } = req.query;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Se requiere el parámetro token'
+      });
+    }
+
+    // Si es un token mock, simular éxito
+    if (token.startsWith('mock-token') || token.startsWith('error-token')) {
+      console.log('⚠️ Token mock detectado, simulando envío exitoso');
+      return res.json({
+        success: true,
+        message: 'Token mock - notificación simulada',
+        token: token,
+        note: 'Este es un token de desarrollo. Compila la app para obtener tokens reales.'
+      });
+    }
+
+    // Enviar notificación real
+    const result = await sendPushNotification(token, title, body);
+
+    res.json({
+      success: true,
+      token: token,
+      result: result
+    });
+
+  } catch (error) {
+    console.error('Error en /test:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 /**
  * GET /api/notification/send

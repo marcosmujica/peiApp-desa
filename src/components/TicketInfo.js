@@ -201,7 +201,6 @@ const TicketInfo = ({ idTicket }) => {
       let aux = new TICKET_LOG_DETAIL_STATUS();
       aux.idTicket = idTicket;
       aux.idStatus = ticket.status;
-      aux.note = ""; // mm - por si quiere agregar algo al cambiar de estado
       aux.message = message;
       aux.note = ticketNote;
       aux.idUserFrom = profile.idUser;
@@ -282,20 +281,22 @@ const TicketInfo = ({ idTicket }) => {
       setContactName(contactObj && contactObj.name ? contactObj.name : "");
       // mm - lo guardo en una variable porque no le da el tiempo de guardarla y luego consultarla
       setRefreshtitle("Buscando cambios...");
-      
+      debugger
       let dateAux = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_CHANGE_DUE_DATE_STATUS, "TS", "desc");
       dateAux.map ((item)=> console.log ("Fecha:", item.TS))
-      // mm si tengo tomo el primer elemento porque esta ordenado descendentemente por ts
-      let TSDueDateAux = dateAux.length == 0 ? new Date() : new Date(dateAux[0].data.dueDate);
+      // mm si tengo tomo el primer elemento porque esta ordenado descendentemente por ts, sino tomo initialDueDate
+      debugger
+      let TSDueDateAux = dateAux.length == 0 ? ticketAux.initialTSDueDate : new Date(dateAux[0].data.dueDate);
       // mm - conformo el partialamount segun los pagos hechos
       let payStatus = await db_getTicketLogByStatus(idTicket, TICKET_DETAIL_PAY_STATUS, "TS", "asc");
       let amount = 0;
       let payList = [];
-
       
       payStatus.forEach((element, index) => {
         let aux = PAY_METHOD.find ((item)=> item.code == element.data.payMethod)
-        let methodName = aux.name || ""
+        // mm - puede venir sin setear
+        let methodName = aux == undefined ? "" : aux.name
+
         payList.push({
           id: index, 
           TSPay: element.data.TSPay,
@@ -360,6 +361,7 @@ const TicketInfo = ({ idTicket }) => {
         setGroupByName(groupByInfo.name);
       }
     } catch (e) {
+
       showAlertModal("Error", "Existio un error al intentar recuperar el ticket. Por favor consulta más tarde.");
       console.log("Error loaddata: " + JSON.stringify(e));
       console.log(e);
@@ -541,7 +543,7 @@ const TicketInfo = ({ idTicket }) => {
             marginVertical: 10,
             justifyContent: "left",
           }}>
-          {ticket.idTicketGroup != "" && <Text><BadgeInfo img={ticket.idTicketGroup} title={ellipString(groupName, 15)} />
+          {ticket.idTicketGroup != "" && isMe(ticket.idUserCreatedBy) && <Text><BadgeInfo img={ticket.idTicketGroup} title={ellipString(groupName, 15)} />
           {`  `}
           <BadgeInfo img={ticket.idTicketGroupBy} title={ellipString(groupByName, 15)} />
           </Text>

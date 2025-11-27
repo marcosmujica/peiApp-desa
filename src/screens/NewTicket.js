@@ -270,7 +270,7 @@ const NewTicket = ({ navigation, route }) => {
 
           await db_addTicketLogStatus(data);
 
-          // mm - creo status de fecha de vencimiento inicial
+          /*// mm - creo status de fecha de vencimiento inicial
           data = new TICKET_LOG_DETAIL_STATUS();
           data.idTicket = idTicket;
           data.idStatus = TICKET_DETAIL_CHANGE_DUE_DATE_STATUS; // mm - si esta abierto muestro el defaul, sino ya lo doy como pagado
@@ -280,7 +280,7 @@ const NewTicket = ({ navigation, route }) => {
           data.data.dueDate = dueDate;
 
           await db_addTicketLogStatus(data);
-
+          */
           // mm - creo por default el rating 0 para el ticket
           await db_addTicketRating(idTicket, 0);
 

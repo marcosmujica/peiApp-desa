@@ -92,21 +92,19 @@ export class DB {
       } else {
         await this._initSQLite();
       }
-      console.log ("sin error")
       // Cargar último seq guardado
       await this._loadLastSeq();
-      console.log ("con error")
       
       this.initialized = true;
       console.log(`[DB:${this.dbName}] ✓ Inicializado correctamente`);
       
       // Si es remota, iniciar sincronización
       if (this.isRemote) {
-        console.log (this.dbName + " SYNC REMOTO")
+      //  console.log (this.dbName + " SYNC REMOTO")
         await this._startSync();
       }
     } catch (error) {
-      console.log(`[DB:${this.dbName}] Error en inicialización:`, error);
+      //console.log(`[DB:${this.dbName}] Error en inicialización:`, error);
       throw error;
     }
   }
@@ -143,13 +141,12 @@ export class DB {
       const startTime = Date.now();
 // Tu operación aquí
       if (this.db) {
-        console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
+        //console.log(`[DB:${this.dbName}] Conexión SQLite ya existe, verificando...`);
         try {
-          //await this.db.getAllAsync('SELECT 1');
-          console.log(`[DB:${this.dbName}] Conexión SQLite activa y funcional`);
+          //console.log(`[DB:${this.dbName}] Conexión SQLite activa y funcional`);
           return;
         } catch (e) {
-          console.warn(`[DB:${this.dbName}] Conexión existente no responde, reabriendo...`);
+          //console.warn(`[DB:${this.dbName}] Conexión existente no responde, reabriendo...`);
           this.db = null;
         }
       }
@@ -160,7 +157,7 @@ export class DB {
         throw new Error('No se pudo establecer conexión SQLite');
       }
       
-      console.log(`[DB:${this.dbName}] Conexión SQLite establecida`);
+      //console.log(`[DB:${this.dbName}] Conexión SQLite establecida`);
       
       // Configurar SQLite con parámetros optimizados para móviles en una sola consulta
       const configStartTime = performance.now();
@@ -181,8 +178,8 @@ export class DB {
       
       
       // Descomentar solo si necesitas resetear las tablas
-       //await this.db.execAsync('DROP TABLE IF EXISTS documents');
-       //await this.db.execAsync('DROP TABLE IF EXISTS metadata');
+       await this.db.execAsync('DROP TABLE IF EXISTS documents');
+       await this.db.execAsync('DROP TABLE IF EXISTS metadata');
 
       // Crear tabla principal usando execAsync (no getAllAsync)
       await this.db.execAsync(`
@@ -211,9 +208,9 @@ export class DB {
           value TEXT
         );
       `);
-      console.log(`[DB:${this.dbName}] ✓ SQLite inicializado correctamente`);
+      //console.log(`[DB:${this.dbName}] ✓ SQLite inicializado correctamente`);
     } catch (error) {
-      console.error(`[DB:${this.dbName}] Error inicializando SQLite:`, error);
+      //console.error(`[DB:${this.dbName}] Error inicializando SQLite:`, error);
       this.db = null;
       this.initialized = false;
       throw error;
@@ -348,7 +345,6 @@ export class DB {
         ...data,
         updatedAt: new Date().toISOString()
       };
-      console.log (dataWithTimestamp)
       
       // Mantener createdAt si existe
       if (existingDoc.data?.createdAt) {
@@ -571,8 +567,6 @@ export class DB {
         event._rev = doc._rev
         event.data = doc.data
         event.source = "LOCAL"
-        console.log ("se emite evento en " + this.dbName)
-        console.log (event)
         emitEvent(EVENT_DB_CHANGE, event)
       }
     }
@@ -651,7 +645,6 @@ export class DB {
           return doc;
         });
       } catch (error) {
-        console.error(`[DB:${this.dbName}] Error en _getAllLocal (SQLite):`, error);
         console.error(`[DB:${this.dbName}] Estado db:`, {
           hasDb: !!this.db,
           initialized: this.initialized,
@@ -717,7 +710,7 @@ export class DB {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
-      console.log(`[DB:${this.dbName}] Sincronización detenida`);
+      //console.log(`[DB:${this.dbName}] Sincronización detenida`);
     }
   }
 
@@ -732,7 +725,7 @@ export class DB {
     try {
       // Validar y sanitizar lastSeq
       const safeLastSeq = this.lastSeq && String(this.lastSeq).trim() !== '' ? String(this.lastSeq) : '0';
-      console.log(`[DB:${this.dbName}] → Sincronizando desde remoto (seq: ${safeLastSeq})`);
+      //console.log(`[DB:${this.dbName}] → Sincronizando desde remoto (seq: ${safeLastSeq})`);
       
       // Construir URL con filtro por usuario si está configurado
       let url = `${this.couchUrl}/${this.dbName}/_changes?include_docs=true&since=${safeLastSeq}`;
@@ -768,8 +761,8 @@ export class DB {
           },
           body: JSON.stringify({ selector: processedFilters })
         };
-        console.log(`[DB:${this.dbName}] Filtros aplicados:`, processedFilters);
-        console.log(`[DB:${this.dbName}] Body enviado:`, fetchOptions.body);
+        //console.log(`[DB:${this.dbName}] Filtros aplicados:`, processedFilters);
+        //console.log(`[DB:${this.dbName}] Body enviado:`, fetchOptions.body);
       }
       const response = await this._fetchWithTimeout(url, fetchOptions);
       
@@ -782,8 +775,8 @@ export class DB {
       const data = await response.json();
       
       //console.log(`[DB:${this.dbName}] Cambios recibidos: ${data.results.length}`);
-      console.log ("recibido remoto " + this.dbName)
-      console.log (data.results)
+      //console.log ("recibido remoto " + this.dbName)
+      //console.log (data.results)
       // Procesar cada cambio
       for (const change of data.results) {
         await this._applyRemoteChange(change);
@@ -811,7 +804,7 @@ export class DB {
     try {
       // Validar que el cambio tenga documento
       if (!change || !change.doc) {
-        console.log(`[DB:${this.dbName}] ⚠ Cambio sin documento válido, ignorando:`, change);
+        //console.log(`[DB:${this.dbName}] ⚠ Cambio sin documento válido, ignorando:`, change);
         return;
       }
 
@@ -819,7 +812,7 @@ export class DB {
       
       // Validar que el documento tenga _id
       if (!remoteDoc._id) {
-        console.log(`[DB:${this.dbName}] ⚠ Documento remoto sin _id, ignorando:`, remoteDoc);
+        //console.log(`[DB:${this.dbName}] ⚠ Documento remoto sin _id, ignorando:`, remoteDoc);
         return;
       }
 
@@ -1021,7 +1014,7 @@ export class DB {
         );
         this.lastSeq = result.length > 0 ? String(result[0].value) : '0';
       }
-      console.log(`[DB:${this.dbName}] Último seq cargado: ${this.lastSeq}`);
+      //console.log(`[DB:${this.dbName}] Último seq cargado: ${this.lastSeq}`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error cargando lastSeq:`, error);
       this.lastSeq = '0';
@@ -1043,7 +1036,7 @@ export class DB {
           ['lastSeq', seq.toString()]
         );
       }
-      console.log(`[DB:${this.dbName}] ✓ lastSeq guardado: ${seq}`);
+      //console.log(`[DB:${this.dbName}] ✓ lastSeq guardado: ${seq}`);
     } catch (error) {
       console.error(`[DB:${this.dbName}] Error guardando lastSeq:`, error);
     }
@@ -1173,9 +1166,9 @@ export class DB {
         console.error(`[DB:${this.dbName}] Error en validación SQLite:`, error);
         // Intentar reabrir la base de datos una vez más
         try {
-          console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
+          //console.warn(`[DB:${this.dbName}] Intentando reconectar SQLite...`);
           this.db = await SQLite.openDatabaseAsync(this.dbName);
-          console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
+          //console.log(`[DB:${this.dbName}] ✓ Reconexión SQLite exitosa`);
         } catch (retryError) {
           throw new Error(`[DB:${this.dbName}] Base de datos SQLite no responde: ${error?.message || String(error)}`);
         }

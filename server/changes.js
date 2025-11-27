@@ -1,7 +1,7 @@
 import express from "express";
 import { WebSocketServer } from "ws";
 
-const COUCH_URL = "http://34.39.168.70:5984"; // ajustá usuario/clave
+const COUCH_URL = "http://localhost:5984"; // ajustá usuario/clave
 const NOTIFICATION_URL = "http://localhost:5000/send"; // ajustá usuario/clave
 const SOURCE="ws"
 
@@ -99,7 +99,8 @@ async function watchDB(dbName) {
             let idUserTo = change.doc?.data?.idUserTo || change.doc?.idUserTo;
       	    let idUserToAux = idUserTo.replace(/\+/g, '')
 
-            sendNotificaction (dbName, idUserToAux, change.doc)
+            // mm - lo pongo sin await para que no se tranque
+            sendNotification (dbName, idUserToAux, change.doc)
             
 
             // Envía solo a los clientes cuyo idUser coincida con idUserTo
@@ -139,7 +140,7 @@ async function watchDB(dbName) {
   }
 }
 
-async function sendNotificaction (dbName, idUserTo, doc)
+async function sendNotification (dbName, idUserTo, doc)
 {
   try{
 
@@ -147,7 +148,16 @@ async function sendNotificaction (dbName, idUserTo, doc)
     let msg = ""
     if (dbName =="ticket_log_status" )
     {
-      title = ""
+      const fetchOptions = {};
+      if (AUTH_HEADER) {
+        fetchOptions.headers = { Authorization: AUTH_HEADER, Accept: 'application/json' };        
+      }
+
+      console.log (doc)
+      let aux = await fetch (COUCH_BASE + "/ticket_log_status/" + doc.data.idTicket)
+
+      console.log (aux)
+      title = aux.data.title
       msg = doc.data.message
       let url = NOTIFICATION_URL + "?to=" + idUserTo + "&title=" + encodeURIComponent (title) + "&body=" + encodeURIComponent (msg)
       console.log (url)

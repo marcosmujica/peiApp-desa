@@ -10,7 +10,7 @@
 export const DB_CONFIG = {
   // URL del servidor CouchDB
   // PRODUCCIÓN
-  COUCH_URL: 'http://34.39.168.70:5984',
+  COUCH_URL: 'https://db.peiapp.tech:5985',
   
   // DESARROLLO (descomentar para usar)
   // COUCH_URL: 'http://192.168.68.53:5984',

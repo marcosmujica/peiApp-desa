@@ -133,13 +133,29 @@ const Home = ({ navigation }) => {
   useEffect(() => {
     // subscribe to new-doc events to reload list
 
-    const notificationStart = async () => {
-      setNotificationToken (pushNotifications.getToken())}
+    const notificationStart = async (token) => {
+      console.log ("TOKEN RECIBIDO:", token);
+      if (token) {
+        await setNotificationToken(token);
+        console.log('✅ Token guardado en BD:', token);
+      } else {
+        console.warn('⚠️ No se pudo obtener el token de notificaciones');
+      }
+    }
   
     const startNotification = async () => {
-      await pushNotifications.initialize(notificationStart);
-      const token = pushNotifications.getToken();
-      console.log('📱 Token de notificaciones:', token);
+      try {
+        // Solo inicializar si no existe token
+        if (!profile.notificationToken) {
+          console.log('🔔 Inicializando token de notificaciones...');
+          const token = await pushNotifications.initialize(notificationStart);
+          console.log('📱 Token de notificaciones:', token);
+        } else {
+          console.log('✅ Token ya existe:', profile.notificationToken);
+        }
+      } catch (error) {
+        console.error('Error al inicializar notificaciones:', error);
+      }
     }
 
     startNotification()
@@ -275,6 +291,9 @@ const Home = ({ navigation }) => {
 
       <TouchableOpacity onPress={() => navigation.navigate("MemberList", )} style={getStyles(colorScheme).floatingBtn}>
         <MaterialCommunityIcons name="message-plus" size={20} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate("QuickEntry")} style={[getStyles(colorScheme).floatingBtn,  {bottom:100}]}>
+        <MaterialCommunityIcons name="flash" size={20} />
       </TouchableOpacity>
       {/* Add a button to open SlideOptions */}
     </View>

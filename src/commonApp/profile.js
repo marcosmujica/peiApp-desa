@@ -39,6 +39,8 @@ export async function setProfile (doc)
 
 export async function setNotificationToken (id)
 {
+    console.log ("ENTRO!!")
+    console.log (id)
     _profile.notificationToken = id
     await saveProfile()
 }

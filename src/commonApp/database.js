@@ -24,7 +24,7 @@ export const db_TICKET_INFO = "ticket_info"
 export const db_TICKET_VIEW = "ticket_view"
 export const db_TICKET_REPEAT = "ticket_repeat"
 
-const DB_URL = "http://34.39.168.70:5985"
+const DB_URL = "https://api.peiapp.tech/db"
 const DB_USERNAME = "app_user";
 const DB_PASSWORD = "app_password_2024";
 //const DB_USERNAME = "admin_X9!fQz7#Lp4Rt8$Mh2";

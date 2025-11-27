@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 /**
  * Clase para gestionar notificaciones push
@@ -23,6 +24,9 @@ class PushNotifications {
     }
 
     try {
+      // Detectar si estamos en Expo Go
+      const isExpoGo = Constants.appOwnership === 'expo';
+      
       // Configurar canal de Android si es necesario
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
@@ -33,14 +37,22 @@ class PushNotifications {
         });
       }
 
-      // Solo funciona en dispositivos físicos
-      if (!Device.isDevice) {
-        console.warn('⚠️ Las notificaciones push solo funcionan en dispositivos físicos');
+      // En Expo Go o simulador, usar token mock
+      if (isExpoGo || !Device.isDevice) {
+        const reason = isExpoGo 
+          ? 'Expo Go no soporta push notifications reales (SDK 53+). Usa development build.'
+          : 'Push notifications solo funcionan en dispositivos físicos';
+        
+        console.warn(`⚠️ ${reason}`);
         this.token = `mock-token-${Date.now()}`;
         this.isInitialized = true;
+        
+        if (initCallback && typeof initCallback === 'function') {
+          initCallback(this.token);
+        }
+        
         return this.token;
       }
-
       // Verificar permisos existentes
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -58,17 +70,41 @@ class PushNotifications {
       }
 
       // Obtener el token de Expo Push Notifications
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      
+      if (!projectId) {
+        console.error('❌ No se encontró projectId en app.json');
+        return null;
+      }
+      
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId
+      });
       this.token = tokenData.data;
       this.isInitialized = true;
-      initCallback ()
 
       console.log('✅ Token de notificaciones obtenido:', this.token);
+      
+      // Llamar al callback con el token
+      if (initCallback && typeof initCallback === 'function') {
+        initCallback(this.token);
+      }
+      
       return this.token;
 
     } catch (error) {
       console.error('❌ Error obteniendo token de notificaciones:', error);
-      return null;
+      console.error('Detalles del error:', JSON.stringify(error, null, 2));
+      
+      // Generar token mock en caso de error para no bloquear la app
+      this.token = `error-token-${Date.now()}`;
+      this.isInitialized = true;
+      
+      if (initCallback && typeof initCallback === 'function') {
+        initCallback(this.token);
+      }
+      
+      return this.token;
     }
   }
 
